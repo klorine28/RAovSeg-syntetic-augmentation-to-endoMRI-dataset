@@ -1,0 +1,46 @@
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# --- Data + outputs (regeneratable; too large for git) ---
+data/processed/
+data/predictions/
+data/preprocessed/
+data/preprocessed_generator/
+data/splits/
+data/processed_generator/
+models/
+logs/
+runs/
+local_results/
+
+# --- External / read-only / license-restricted ---
+# UT-EndoMRI: raw dataset (~7.5 GB, non-commercial-use license)
+UT-EndoMRI/
+# Paper: publisher PDF, not redistributable
+Paper/
+# RAovSeg: cloned external repo (xlianguth/RAovSeg)
+RAovSeg/
+
+# --- Generated artefacts ---
+exp1a_samples/
+*.npy
+*.pt
+*.ckpt
+*.nii.gz
+*_pred.npy
+
+# --- Personal / unreviewed ---
+email_draft.md

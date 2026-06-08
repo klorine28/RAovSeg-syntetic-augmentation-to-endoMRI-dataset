@@ -1,0 +1,57 @@
+# =============================================================================
+# Experiment 1a: 2D conditional DDPM with concat conditioning
+# Phase 1 baseline. No SPADE, no PatchGAN. Pure diffusion.
+# =============================================================================
+
+experiment:
+  name: "exp1a_ddpm_concat"
+  seed: 42
+  output_dir: "/mnt/parscratch/users/ijp25lg/synth_mri/runs/exp1a"
+  resume: true                  # if a checkpoint is in output_dir, resume from it
+
+data:
+  # Output of src/Generator/preprocess_for_generator.py
+  preprocessed_root: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D2"
+  # Output of src/Generator/build_generator_split.py
+  split_file: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d2_generator_split.json"
+  sequence: "T2FS"              # matches actual filenames (D2-XXX_T2FS.nii.gz)
+  image_size: 512
+  num_label_channels: 5         # bg, uterus, L-ov, R-ov, em
+  ovary_oversample_weight: 3.0
+  num_workers: 4
+
+model:
+  in_channels: 6                # 1 image + 5 labels (CONCAT conditioning)
+  out_channels: 1               # predicted noise on image
+  num_channels: [64, 128, 256, 256]
+  # Attention only at the deepest level (64x64). Level-2 attention at 128x128
+  # produces a B×H×128^2×128^2 score tensor that OOMs the A100 80GB even at
+  # batch 4 (32 GiB for the score tensor, on top of ~53 GiB of activations
+  # already cached from earlier down-blocks). Level-3 alone is 2 GiB.
+  # This is also standard pixel-space diffusion practice (Imagen, SD-pixel).
+  attention_levels: [false, false, false, true]
+  num_res_blocks: 2
+  num_head_channels: [0, 0, 0, 32]
+  norm_num_groups: 32
+
+diffusion:
+  num_train_timesteps: 1000
+  beta_schedule: "linear_beta"   # MONAI Generative registry key — not "linear"
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: "epsilon"
+
+training:
+  batch_size: 4                 # halved from 8 — self-attention at 128x128 OOMs the A100 80GB at batch 8
+  total_steps: 80000
+  lr: 1.0e-4
+  weight_decay: 0.0
+  grad_clip: 1.0
+  amp: true                     # bf16 autocast
+  log_every: 50
+  sample_every: 5000
+  ckpt_every: 5000
+
+sampling:
+  num_inference_steps: 50       # DDIM at inference; full T=1000 used in training
+  num_samples_per_grid: 4
