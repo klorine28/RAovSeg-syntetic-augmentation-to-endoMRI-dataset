@@ -35,7 +35,8 @@ Paper/
 RAovSeg/
 
 # --- Generated artefacts ---
-exp1a_samples/
+exp1a_samples*/
+exp1b_samples*/
 *.npy
 *.pt
 *.ckpt

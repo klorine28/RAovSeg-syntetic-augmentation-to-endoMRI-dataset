@@ -6,12 +6,21 @@ Separate from RAovSeg preprocessing. The differences:
   RAovSeg pipeline                       Generator pipeline (this script)
   ----------------                       --------------------------------
   Output: .npy                           Output: .nii.gz (preserves affine)
-  Single-channel binary (ovary only)     5-channel one-hot
-                                            ch0=bg, ch1=uterus,
-                                            ch2=L-ov, ch3=R-ov, ch4=endo
+  Single-channel binary (ovary only)     6-channel one-hot
+                                            ch0=outside_body (air),
+                                            ch1=uterus,
+                                            ch2=L-ov, ch3=R-ov,
+                                            ch4=endo, ch5=body_other
+                                                       (inside body, no target)
   Ovary intensity enhancement APPLIED    Enhancement NOT applied
   (img → enhanced[0.22, 0.3] → 1, ...)   (plain [0, 1] normalised)
   Excludes ovary-free slices in train    Keeps all slices (full anatomy)
+
+The 6th channel (body silhouette minus target organs) is derived from the
+normalised T2FS image via threshold > 0.05, morphological closing, and hole
+filling. It gives the generator explicit "inside body, fill with plausible
+non-target tissue" conditioning, eliminating the edge-noise artefact seen
+with only the 5-channel labels.
 
 Why no enhancement here:
   Enhancement is RAovSeg-specific. If the generator trained on enhanced
@@ -59,6 +68,7 @@ from typing import Optional
 import numpy as np
 import SimpleITK as sitk
 from scipy.ndimage import label as cc_label
+from scipy.ndimage import binary_closing, binary_fill_holes
 
 
 SUBJECT_DIR_RE = re.compile(r"^D2-\d{3}$")
@@ -70,10 +80,19 @@ TARGET_SIZE = 512
 TARGET_SPACING = (0.35, 0.35, 6.0)  # (sx, sy, sz) in mm — matches RAovSeg recreation
 SEQUENCE = "T2FS"
 
-# Channel layout in the output 5-channel label
-CH_BG, CH_UTERUS, CH_OV_L, CH_OV_R, CH_EM = 0, 1, 2, 3, 4
-CH_NAMES = {CH_BG: "bg", CH_UTERUS: "uterus", CH_OV_L: "ov_L",
-            CH_OV_R: "ov_R", CH_EM: "em"}
+# Threshold (on normalised [0,1] image) for the body silhouette mask.
+# Pelvic T2FS: air is near 0 after percentile-clip + minmax, body tissue is
+# meaningfully brighter. 0.05 reliably catches body without including air.
+BODY_THRESHOLD = 0.05
+
+# Channel layout in the output 6-channel label.
+# bg is "outside body" (air). body is "inside body, not a target organ".
+# Target organs (uterus, L-ov, R-ov, em) take priority over body where they
+# overlap. One-hot semantics: exactly one channel == 1 per voxel.
+CH_BG, CH_UTERUS, CH_OV_L, CH_OV_R, CH_EM, CH_BODY = 0, 1, 2, 3, 4, 5
+CH_NAMES = {CH_BG: "outside_body", CH_UTERUS: "uterus", CH_OV_L: "ov_L",
+            CH_OV_R: "ov_R", CH_EM: "em", CH_BODY: "body_other"}
+N_CHANNELS = 6
 
 
 # --------------------------------------------------------------------------- #
@@ -114,6 +133,24 @@ def _resample_label_to_image(label: sitk.Image, ref: sitk.Image) -> sitk.Image:
     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     resampler.SetDefaultPixelValue(0)
     return resampler.Execute(label)
+
+
+def _body_silhouette(image_zyx: np.ndarray) -> np.ndarray:
+    """Extract a body-vs-air binary mask from the normalised image.
+
+    Pipeline per slice: threshold > BODY_THRESHOLD, morphological closing
+    (3 iterations) to bridge intra-body discontinuities, fill internal
+    holes. Returns (Z, H, W) uint8 binary.
+
+    This is a cheap, deterministic proxy — UT-EndoMRI doesn't ship body
+    silhouette annotations. For pelvic T2FS after percentile-clip and
+    minmax, air is reliably below 0.05 and the body is contiguous, so
+    this is robust without any per-subject tuning.
+    """
+    mask = image_zyx > BODY_THRESHOLD
+    closed = np.stack([binary_closing(s, iterations=3) for s in mask])
+    filled = np.stack([binary_fill_holes(s) for s in closed])
+    return filled.astype(np.uint8)
 
 
 def _base_preprocess_image(image_path: Path) -> sitk.Image:
@@ -298,15 +335,19 @@ def process_subject(
     # 3) Split ovary into L/R
     ov_L, ov_R, lr_decision = _split_ovary_lr(ov_arr)
 
-    # 4) Build 5-channel label, resolve overlaps with priority
+    # 4) Body silhouette from the normalised image
+    image_arr_for_body = sitk.GetArrayFromImage(image)
+    body_arr = _body_silhouette(image_arr_for_body)
+
+    # 5) Build 6-channel one-hot label, resolve overlaps with priority
     z_size = image.GetSize()[2]
-    label_4d = np.zeros((5, z_size, TARGET_SIZE, TARGET_SIZE), dtype=np.uint8)
+    label_4d = np.zeros((N_CHANNELS, z_size, TARGET_SIZE, TARGET_SIZE), dtype=np.uint8)
     label_4d[CH_UTERUS] = ut_arr
     label_4d[CH_OV_L] = ov_L
     label_4d[CH_OV_R] = ov_R
     label_4d[CH_EM] = em_arr
 
-    # Priority for overlap resolution: endo > L-ov > R-ov > uterus.
+    # Priority for overlap resolution among target organs: endo > L-ov > R-ov > uterus.
     # Endometriomas are physically inside ovary contours, so they win those.
     priority = [CH_EM, CH_OV_L, CH_OV_R, CH_UTERUS]
     overlap_voxels = 0
@@ -318,9 +359,17 @@ def process_subject(
                 label_4d[lo][both] = 0
                 overlap_voxels += n_overlap
 
-    # Background = NOT (any foreground)
-    foreground = label_4d[1:].any(axis=0)
-    label_4d[CH_BG] = (~foreground).astype(np.uint8)
+    # 6) Compose body and bg channels so the 6-channel label stays one-hot:
+    #   - target organ channels (1..4) keep their voxels as resolved above
+    #   - body channel (5) = inside body AND not in any target organ
+    #   - bg channel (0)   = outside body silhouette (air / non-tissue)
+    target_organs = (
+        label_4d[CH_UTERUS] | label_4d[CH_OV_L]
+        | label_4d[CH_OV_R] | label_4d[CH_EM]
+    ).astype(bool)
+    body_bool = body_arr.astype(bool)
+    label_4d[CH_BODY] = (body_bool & ~target_organs).astype(np.uint8)
+    label_4d[CH_BG] = (~body_bool).astype(np.uint8)
 
     # 5) Save outputs
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -348,6 +397,8 @@ def process_subject(
             "ov_L": int(label_4d[CH_OV_L].sum()),
             "ov_R": int(label_4d[CH_OV_R].sum()),
             "em": int(label_4d[CH_EM].sum()),
+            "body_other": int(label_4d[CH_BODY].sum()),
+            "outside_body": int(label_4d[CH_BG].sum()),
         },
         "overlap_voxels_resolved": overlap_voxels,
         "has_em_file": em_path.exists(),

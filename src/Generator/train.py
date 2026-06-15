@@ -25,6 +25,7 @@ from torch.utils.tensorboard import SummaryWriter
 from .dataset import D2SliceDataset
 from .model import (
     ConcatConditionedDDPM,
+    EMAModel,
     build_inference_scheduler,
     build_train_scheduler,
     build_unet,
@@ -41,12 +42,17 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-def save_ckpt(path: Path, *, model, optim, step: int, cfg: dict) -> None:
+def save_ckpt(path: Path, *, model, optim, step: int, cfg: dict, ema=None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {"model": model.state_dict(), "optim": optim.state_dict(), "step": step, "cfg": cfg},
-        path,
-    )
+    payload = {
+        "model": model.state_dict(),
+        "optim": optim.state_dict(),
+        "step": step,
+        "cfg": cfg,
+    }
+    if ema is not None:
+        payload["ema"] = ema.state_dict()
+    torch.save(payload, path)
     print(f"[ckpt] saved {path} @ step {step}")
 
 
@@ -178,12 +184,21 @@ def main(cfg_path: str):
         weight_decay=cfg["training"]["weight_decay"],
     )
 
+    # --- EMA (created BEFORE resume so we can load saved EMA state) --- #
+    ema_decay = float(cfg["training"].get("ema_decay", 0.0))
+    ema = EMAModel(model, decay=ema_decay) if ema_decay > 0.0 else None
+    if ema is not None:
+        print(f"[setup] EMA enabled, decay={ema_decay}")
+
     # --- resume --- #
     start_step = 0
     if resume_payload is not None:
         model.load_state_dict(resume_payload["model"])
         optim.load_state_dict(resume_payload["optim"])
         start_step = resume_payload["step"] + 1
+        if ema is not None and "ema" in resume_payload:
+            ema.load_state_dict(resume_payload["ema"])
+            print(f"[ckpt] resumed EMA state from step {start_step - 1}")
 
     writer = SummaryWriter(log_dir=str(tb_dir))
 
@@ -195,9 +210,42 @@ def main(cfg_path: str):
     grad_clip = cfg["training"]["grad_clip"]
     use_amp = cfg["training"]["amp"]
     amp_dtype = torch.bfloat16 if use_amp else torch.float32
+    cfg_dropout_prob = float(cfg["training"].get("cfg_dropout_prob", 0.0))
+    guidance_scale = float(cfg["sampling"].get("guidance_scale", 1.0))
+    print(f"[setup] CFG dropout_prob={cfg_dropout_prob}, "
+          f"sampling guidance_scale={guidance_scale}")
 
-    fixed_batch = next(iter(loader))
-    fixed_labels = fixed_batch["label"][: cfg["sampling"]["num_samples_per_grid"]].to(device)
+    # --- Pick a fixed batch with anatomy for the periodic visualisation grid.
+    # Without this, the first batch from the loader has ~24% chance of being
+    # all background-only slices, leaving the in-training grids unable to
+    # show whether CFG/EMA are doing anything (blank labels = blank overlays).
+    # We resample up to 20 batches looking for one with at least half the
+    # samples carrying foreground voxels.
+    n_grid = cfg["sampling"]["num_samples_per_grid"]
+    required_fg = max(2, n_grid // 2)
+    chosen_batch = None
+    chosen_fg = -1
+    best_batch = None
+    best_fg = -1
+    for attempt in range(20):
+        cand = next(iter(loader))
+        # Score on target organs only (channels 1-4 = uterus, L-ov, R-ov, em).
+        # Excludes channel 0 (outside_body) and channel 5 (body_other) — those
+        # are always non-zero somewhere and don't signal "interesting anatomy."
+        fg_per_sample = (cand["label"][:, 1:5].sum(dim=(1, 2, 3)) > 0).long()
+        fg = int(fg_per_sample[:n_grid].sum())
+        if fg > best_fg:
+            best_fg, best_batch = fg, cand
+        if fg >= required_fg:
+            chosen_batch, chosen_fg = cand, fg
+            print(f"[setup] fixed_labels chosen at attempt {attempt + 1}: "
+                  f"{fg}/{n_grid} samples have foreground")
+            break
+    if chosen_batch is None:
+        chosen_batch, chosen_fg = best_batch, best_fg
+        print(f"[setup] WARNING: no batch met required_fg={required_fg} after 20 "
+              f"attempts; using best ({best_fg}/{n_grid} with foreground)")
+    fixed_labels = chosen_batch["label"][:n_grid].to(device)
 
     model.train()
     step = start_step
@@ -215,6 +263,13 @@ def main(cfg_path: str):
         lbl = batch["label"].to(device, non_blocking=True)
 
         b = x0.shape[0]
+        # CFG dropout: with prob cfg_dropout_prob per sample, replace label
+        # with all-zeros so the model learns the unconditional distribution
+        # alongside the conditional one. Drops are independent per sample.
+        if cfg_dropout_prob > 0.0:
+            keep = (torch.rand(b, device=device) >= cfg_dropout_prob).float()
+            lbl = lbl * keep.view(-1, 1, 1, 1)
+
         t = torch.randint(
             0, cfg["diffusion"]["num_train_timesteps"], (b,), device=device, dtype=torch.long
         )
@@ -230,6 +285,9 @@ def main(cfg_path: str):
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optim.step()
 
+        if ema is not None:
+            ema.update(model)
+
         if step % log_every == 0:
             dt = time.time() - t0
             it_per_s = (step - start_step + 1) / max(dt, 1e-6)
@@ -239,21 +297,29 @@ def main(cfg_path: str):
             writer.add_scalar("speed/it_per_s", it_per_s, step)
 
         if step > 0 and step % sample_every == 0:
-            model.eval()
+            # Use EMA model for sampling if available — cleaner samples.
+            sample_model = ema.ema_model if ema is not None else model
+            sample_model.eval()
             with torch.no_grad():
-                samples = model.sample(fixed_labels, infer_sched, device)
+                samples = sample_model.sample(fixed_labels, infer_sched, device,
+                                              guidance_scale=guidance_scale)
             save_sample_grid(samples, fixed_labels, sample_dir / f"step_{step:06d}.png")
-            model.train()
+            if ema is None:
+                model.train()  # EMA model stays in eval; training model returns to train
 
         if step > 0 and step % ckpt_every == 0:
-            save_ckpt(ckpt_dir / f"step_{step:06d}.pt", model=model, optim=optim, step=step, cfg=cfg)
+            save_ckpt(ckpt_dir / f"step_{step:06d}.pt",
+                      model=model, optim=optim, step=step, cfg=cfg, ema=ema)
 
         step += 1
 
-    save_ckpt(ckpt_dir / f"step_{step:06d}.pt", model=model, optim=optim, step=step, cfg=cfg)
-    model.eval()
+    save_ckpt(ckpt_dir / f"step_{step:06d}.pt",
+              model=model, optim=optim, step=step, cfg=cfg, ema=ema)
+    sample_model = ema.ema_model if ema is not None else model
+    sample_model.eval()
     with torch.no_grad():
-        samples = model.sample(fixed_labels, infer_sched, device)
+        samples = sample_model.sample(fixed_labels, infer_sched, device,
+                                      guidance_scale=guidance_scale)
     save_sample_grid(samples, fixed_labels, sample_dir / f"step_{step:06d}_final.png")
     writer.close()
     print(f"[done] total wall time: {(time.time()-t0)/3600:.2f}h")

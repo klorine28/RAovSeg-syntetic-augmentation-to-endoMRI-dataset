@@ -44,23 +44,30 @@ from .train import save_sample_grid
 
 
 def pick_top_n_by_foreground(dataset: D2SliceDataset, n: int) -> list[np.ndarray]:
-    """Pick the n slices with the highest total foreground voxel count.
+    """Pick the n slices with the highest target-organ voxel count.
+
+    Scoring uses channels 1-4 only (uterus, L-ov, R-ov, em) — the body
+    silhouette at channel 5 (if present) is excluded from the score
+    because it's true everywhere inside the body and would dominate the
+    ranking, defeating the purpose of picking "labels with anatomy."
 
     Returns a list of (C, H, W) label arrays.
     """
     scored: list[tuple[int, np.ndarray, str, int]] = []
     for si in dataset.index:
         lbl = dataset.labels[si.subject][:, si.z]   # (C, H, W)
-        fg = int(lbl[1:].sum())                     # exclude background (ch 0)
+        # Slice [1:5] = channels 1, 2, 3, 4 (uterus, L-ov, R-ov, em).
+        # Works for both 5-channel (legacy) and 6-channel (with body) layouts.
+        fg = int(lbl[1:5].sum())
         if fg == 0:
             continue
         scored.append((fg, lbl, si.subject, si.z))
     scored.sort(key=lambda x: -x[0])
     picked = scored[:n]
-    print(f"[infer] picked {len(picked)} labels by foreground voxel count:")
+    print(f"[infer] picked {len(picked)} labels by target-organ voxel count:")
     for i, (fg, lbl, subj, z) in enumerate(picked):
         per_ch = {c: int((lbl[c] > 0).sum()) for c in range(lbl.shape[0])}
-        print(f"  [{i}] {subj} z={z}: total_fg={fg}, per_channel={per_ch}")
+        print(f"  [{i}] {subj} z={z}: target_fg={fg}, per_channel={per_ch}")
     return [lbl for _, lbl, _, _ in picked]
 
 
@@ -71,6 +78,10 @@ def main():
     parser.add_argument("--out", required=True, help="Output PNG path")
     parser.add_argument("--n", type=int, default=4,
                         help="Number of sample slices to generate (default 4)")
+    parser.add_argument("--guidance-scale", type=float, default=None,
+                        help="CFG guidance scale (overrides YAML; 1.0=disable, 3-5=typical)")
+    parser.add_argument("--no-ema", action="store_true",
+                        help="Use training weights instead of EMA (default: EMA if present in ckpt)")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -102,17 +113,33 @@ def main():
     unet = build_unet(cfg["model"])
     model = ConcatConditionedDDPM(unet).to(device)
     ckpt = torch.load(args.ckpt, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model"])
+    # Prefer EMA weights if present in the checkpoint — they produce cleaner
+    # samples. Override with --no-ema to use training weights instead.
+    if "ema" in ckpt and not args.no_ema:
+        model.load_state_dict(ckpt["ema"])
+        weight_source = "EMA"
+    else:
+        model.load_state_dict(ckpt["model"])
+        weight_source = "training (no EMA in ckpt)" if "ema" not in ckpt else "training (--no-ema)"
     model.eval()
-    print(f"[infer] loaded ckpt from step {ckpt['step']}")
+    print(f"[infer] loaded ckpt from step {ckpt['step']}, weights={weight_source}")
 
     infer_sched = build_inference_scheduler(
         cfg["diffusion"], cfg["sampling"]["num_inference_steps"]
     )
 
+    # Resolve guidance scale: CLI overrides YAML; default 1.0 (no CFG) if absent.
+    if args.guidance_scale is not None:
+        guidance = args.guidance_scale
+    else:
+        guidance = float(cfg["sampling"].get("guidance_scale", 1.0))
+    print(f"[infer] guidance_scale={guidance} "
+          f"({'CFG enabled' if guidance != 1.0 else 'conditional only'})")
+
     # --- sample ---
     with torch.no_grad():
-        samples = model.sample(labels, infer_sched, device, progress=True)
+        samples = model.sample(labels, infer_sched, device,
+                               guidance_scale=guidance, progress=True)
 
     out_path = Path(args.out)
     save_sample_grid(samples, labels, out_path)
