@@ -1,0 +1,79 @@
+# =============================================================================
+# Experiment 1c-concat: 2D conditional DDPM with concat conditioning + PatchGAN
+# Phase 1 third arm (concat lineage). Backbone identical to 1a; only addition
+# is the conditional PatchGAN discriminator and adversarial loss term.
+#
+# Hypothesis tested: does adversarial pressure tighten 1a's already-decent
+# concat conditioning — texture realism + label-image boundary fidelity?
+#
+# See TIER1_TUNING_AND_EXPLAINABILITY.md §10 for the rescoped 1c framing.
+# =============================================================================
+
+experiment:
+  name: "exp1c_concat"
+  seed: 42
+  output_dir: "/mnt/parscratch/users/ijp25lg/synth_mri/runs/exp1c_concat"
+  resume: true
+
+data:
+  preprocessed_root: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D2"
+  split_file: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d2_generator_split.json"
+  sequence: "T2FS"
+  image_size: 512
+  num_label_channels: 6
+  ovary_oversample_weight: 3.0
+  num_workers: 4
+
+# Generator backbone — IDENTICAL to 1a's concat U-Net for ablation parity.
+model:
+  type: "concat"
+  in_channels: 7                # 1 image + 6 labels
+  out_channels: 1
+  num_channels: [64, 128, 256, 256]
+  attention_levels: [false, false, false, true]
+  num_res_blocks: 2
+  num_head_channels: [0, 0, 0, 32]
+  norm_num_groups: 32
+
+# NEW for 1c — conditional PatchGAN discriminator.
+discriminator:
+  type: "patchgan"
+  base_channels: 64             # ≈2.7 M params at this width
+  use_spectral_norm: true       # stabilises D, prevents saturation
+  lr: 2.5e-5                    # ¼ of G's lr per original design doc
+  weight_decay: 0.0
+  # Adversarial loss schedule:
+  #   step ∈ [0,         warmup_end) → λ = 0   (pure DDPM warmup)
+  #   step ∈ [warmup_end, ramp_end)  → λ ramps 0 → peak linearly
+  #   step ∈ [ramp_end,   ∞)         → λ = peak
+  lambda_warmup_end: 10000
+  lambda_ramp_end: 30000
+  lambda_peak: 0.01
+
+diffusion:
+  num_train_timesteps: 1000
+  beta_schedule: "linear_beta"
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: "epsilon"
+
+training:
+  batch_size: 4
+  total_steps: 100000           # 100k = 10k DDPM warmup + 90k under adversarial
+  lr: 1.0e-4                    # G learning rate (D is set in discriminator block)
+  weight_decay: 0.0
+  grad_clip: 1.0
+  amp: true
+  log_every: 50
+  sample_every: 5000
+  ckpt_every: 5000
+  cfg_dropout_prob: 0.1
+  ema_decay: 0.9999
+
+sampling:
+  # Inherited from 1a's per-variant optimum (concat: g=3.0). The Tier 1 + explain
+  # finding that g=2.0 under-conditions concat applies here as well, so 1c-concat
+  # samples at g=3.0 by default.
+  num_inference_steps: 100
+  num_samples_per_grid: 4
+  guidance_scale: 3.0

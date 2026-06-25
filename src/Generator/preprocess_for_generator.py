@@ -22,6 +22,15 @@ filling. It gives the generator explicit "inside body, fill with plausible
 non-target tissue" conditioning, eliminating the edge-noise artefact seen
 with only the 5-channel labels.
 
+Body-centered resampling (this version): instead of image-centered
+resampling (which left subjects' bodies off-centre with substantial dark
+air margins on one side), we now find each subject's body bounding box at
+native resolution and resample so the body+5% margin fills the 512×512
+output frame. The in-plane spacing becomes per-subject; smaller bodies get
+finer spacing (more zoom), larger bodies get coarser. Anatomy of interest
+always fills ~90% of the frame.
+
+
 Why no enhancement here:
   Enhancement is RAovSeg-specific. If the generator trained on enhanced
   images, downstream RAovSeg would apply enhancement a SECOND time when
@@ -102,20 +111,85 @@ def _read(path: Path, pixel_type=sitk.sitkFloat32) -> sitk.Image:
     return sitk.ReadImage(str(path), pixel_type)
 
 
-def _resample_image_to_target(img: sitk.Image) -> sitk.Image:
-    """Resample to TARGET_SIZE in-plane and TARGET_SPACING. Linear interp."""
-    orig_size = img.GetSize()
-    orig_spacing = img.GetSpacing()
-    # Z extent (mm) preserved — recompute Z size at new spacing
-    z_extent_mm = orig_size[2] * orig_spacing[2]
-    new_z_size = max(int(round(z_extent_mm / TARGET_SPACING[2])), 1)
-    new_size = [TARGET_SIZE, TARGET_SIZE, new_z_size]
+def _body_bbox_xy(image_norm_sitk: sitk.Image) -> tuple[int, int, int, int]:
+    """Find in-plane body bounding box in pixel coords (x0, x1, y0, y1).
 
+    Body silhouette is computed at NATIVE resolution via the same threshold
+    + morphological closing + hole fill pipeline as the final body_other
+    label channel. Returns inclusive pixel indices.
+    """
+    arr = sitk.GetArrayFromImage(image_norm_sitk)  # (Z, Y, X)
+    body = _body_silhouette(arr)                   # (Z, Y, X) uint8
+    y_any = body.any(axis=(0, 2))                  # collapse Z and X → per-row
+    x_any = body.any(axis=(0, 1))                  # collapse Z and Y → per-col
+    y_idx = np.where(y_any)[0]
+    x_idx = np.where(x_any)[0]
+    if len(y_idx) == 0 or len(x_idx) == 0:
+        # No body found — fall back to using the full image
+        h, w = arr.shape[1], arr.shape[2]
+        return 0, w - 1, 0, h - 1
+    return int(x_idx[0]), int(x_idx[-1]), int(y_idx[0]), int(y_idx[-1])
+
+
+def _resample_image_body_centered(
+    img: sitk.Image, margin_pct: float = 0.05,
+) -> sitk.Image:
+    """Body-centered resampling.
+
+    Constructs a square FOV around the body bounding box (with `margin_pct`
+    margin) and resamples to TARGET_SIZE × TARGET_SIZE. The in-plane spacing
+    becomes per-subject — bodies that are physically smaller get finer
+    spacing (more zoom), bodies that are larger get coarser spacing.
+    The body always fills ~90% of the output frame, eliminating the dark
+    air margins that the image-centered resampling left.
+
+    Z-axis is unchanged (Z extent preserved, slices at TARGET_SPACING[2]).
+    """
+    orig_spacing = np.array(img.GetSpacing())                # (sx, sy, sz)
+    orig_size = img.GetSize()
+    if not np.isclose(orig_spacing[0], orig_spacing[1], rtol=1e-3):
+        # Anisotropic in-plane spacing is uncommon for pelvic MRI but
+        # not impossible; we use sx for the conversion. Print a heads-up.
+        print(f"[preprocess] WARNING: anisotropic in-plane spacing "
+              f"{orig_spacing[:2]}; using sx for bbox-to-mm conversion")
+
+    # 1) Bounding box (pixel coords, native resolution)
+    x0, x1, y0, y1 = _body_bbox_xy(img)
+    w_px = x1 - x0 + 1
+    h_px = y1 - y0 + 1
+    side_px = int(round(max(w_px, h_px) * (1.0 + 2.0 * margin_pct)))
+    cx_px = (x0 + x1) / 2.0
+    cy_px = (y0 + y1) / 2.0
+
+    # 2) Per-subject in-plane output spacing so side_px × orig_spacing[0]
+    #    spans TARGET_SIZE output pixels.
+    side_mm = side_px * orig_spacing[0]
+    out_spacing_xy = float(side_mm / TARGET_SIZE)
+
+    # 3) Z extent preserved at TARGET_SPACING[2]
+    z_extent_mm = orig_size[2] * orig_spacing[2]
+    new_z = max(int(round(z_extent_mm / TARGET_SPACING[2])), 1)
+    out_size = [TARGET_SIZE, TARGET_SIZE, new_z]
+    out_spacing = (out_spacing_xy, out_spacing_xy, TARGET_SPACING[2])
+
+    # 4) Compute output origin so the body bbox centre maps to the centre
+    #    of the output frame. SITK uses (x, y, z) ordering for coordinates.
+    orig_origin = np.array(img.GetOrigin())
+    direction = np.array(img.GetDirection()).reshape(3, 3)
+    body_centre_idx = np.array([cx_px, cy_px, 0.0])
+    body_centre_local = body_centre_idx * orig_spacing
+    body_centre_world = orig_origin + direction @ body_centre_local
+
+    out_centre_idx = np.array([TARGET_SIZE / 2.0, TARGET_SIZE / 2.0, 0.0])
+    out_centre_local = out_centre_idx * np.array(out_spacing)
+    out_origin = body_centre_world - direction @ out_centre_local
+
+    # 5) Resample
     resampler = sitk.ResampleImageFilter()
-    resampler.SetSize(new_size)
-    resampler.SetOutputSpacing(TARGET_SPACING)
+    resampler.SetSize(out_size)
+    resampler.SetOutputSpacing(out_spacing)
     resampler.SetOutputDirection(img.GetDirection())
-    resampler.SetOutputOrigin(img.GetOrigin())
+    resampler.SetOutputOrigin(out_origin.tolist())
     resampler.SetInterpolator(sitk.sitkLinear)
     resampler.SetDefaultPixelValue(0.0)
     return resampler.Execute(img)
@@ -154,7 +228,13 @@ def _body_silhouette(image_zyx: np.ndarray) -> np.ndarray:
 
 
 def _base_preprocess_image(image_path: Path) -> sitk.Image:
-    """Load → clip 1st-99th percentile → normalise [0,1] → resample. NO enhancement."""
+    """Load → clip 1st-99th percentile → normalise [0,1] → BODY-CENTERED resample.
+
+    Body-centered: the image is cropped to the body bounding box (with a
+    small margin) before being resampled to 512×512. This makes the body
+    fill ~90% of the output frame, eliminating the dark air margins from
+    image-centered resampling. Per-subject in-plane spacing — variable.
+    """
     img = _read(image_path, sitk.sitkFloat32)
     arr = sitk.GetArrayFromImage(img)  # (Z, Y, X)
 
@@ -164,7 +244,7 @@ def _base_preprocess_image(image_path: Path) -> sitk.Image:
 
     norm = sitk.GetImageFromArray(arr.astype(np.float32))
     norm.CopyInformation(img)
-    return _resample_image_to_target(norm)
+    return _resample_image_body_centered(norm)
 
 
 def _split_ovary_lr(ov_arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, str]:
@@ -386,10 +466,12 @@ def process_subject(
 
     # 6) Summary stats
     n_ovary_slices = int(((label_4d[CH_OV_L] | label_4d[CH_OV_R]).any(axis=(1, 2))).sum())
+    actual_spacing = tuple(round(float(s), 4) for s in image.GetSpacing())
     return {
         "status": "ok",
         "z": z_size,
-        "spacing": TARGET_SPACING,
+        "spacing": actual_spacing,             # per-subject body-centered spacing
+        "spacing_z_target": TARGET_SPACING[2],
         "n_ovary_slices": n_ovary_slices,
         "lr_decision": lr_decision,
         "n_voxels": {

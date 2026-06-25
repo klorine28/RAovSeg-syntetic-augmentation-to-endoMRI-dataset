@@ -18,6 +18,8 @@ import torch.nn as nn
 from generative.networks.nets import DiffusionModelUNet
 from generative.networks.schedulers import DDPMScheduler, DDIMScheduler
 
+from .unet_spade import DiffusionUNetSPADE
+
 
 class EMAModel:
     """Exponential moving average of a wrapped nn.Module's parameters.
@@ -59,13 +61,47 @@ class EMAModel:
 def build_unet(model_cfg: dict) -> DiffusionModelUNet:
     return DiffusionModelUNet(
         spatial_dims=2,
-        in_channels=model_cfg["in_channels"],          # 6 = 1 image + 5 labels
+        in_channels=model_cfg["in_channels"],          # 7 = 1 image + 6 labels
         out_channels=model_cfg["out_channels"],        # 1 = noise on image
         num_channels=tuple(model_cfg["num_channels"]),
         attention_levels=tuple(model_cfg["attention_levels"]),
         num_res_blocks=model_cfg["num_res_blocks"],
         num_head_channels=tuple(model_cfg["num_head_channels"]),
         norm_num_groups=model_cfg["norm_num_groups"],
+    )
+
+
+def build_model_from_cfg(cfg: dict) -> "_BaseConditionedDDPM":
+    """Dispatch on cfg['model']['type'] (default 'concat' for 1a).
+
+    Returns a wrapped DDPM ready to call .predict_noise / .sample.
+    """
+    model_type = cfg["model"].get("type", "concat")
+    if model_type == "concat":
+        return ConcatConditionedDDPM(build_unet(cfg["model"]))
+    if model_type == "spade":
+        num_label_channels = cfg["data"]["num_label_channels"]
+        return SPADEConditionedDDPM(build_unet_spade(cfg["model"], num_label_channels))
+    raise ValueError(
+        f"Unknown model.type={model_type!r}; supported: 'concat' (1a), 'spade' (1b)"
+    )
+
+
+def build_unet_spade(model_cfg: dict, num_label_channels: int) -> DiffusionUNetSPADE:
+    """Builds the 1b backbone — pure-SPADE U-Net.
+
+    Pure SPADE means in_channels is 1 (noisy image only); the label tensor
+    enters the network through SPADE modules at the bottleneck and every
+    decoder ResBlock, not via input concatenation.
+    """
+    return DiffusionUNetSPADE(
+        in_channels=model_cfg["in_channels"],            # 1 for pure SPADE
+        out_channels=model_cfg["out_channels"],          # 1 = noise on image
+        label_channels=num_label_channels,               # 6 for our setup
+        channels=tuple(model_cfg["num_channels"]),
+        attention_levels=tuple(model_cfg["attention_levels"]),
+        num_res_blocks=model_cfg["num_res_blocks"],
+        spade_hidden=model_cfg.get("spade_hidden", 64),
     )
 
 
@@ -95,22 +131,17 @@ def build_inference_scheduler(diff_cfg: dict, num_inference_steps: int) -> DDIMS
     return sched
 
 
-class ConcatConditionedDDPM(nn.Module):
-    """Wraps the U-Net so the training/inference loops don't need to know about
-    the channel-concat trick."""
-
-    def __init__(self, unet: DiffusionModelUNet):
-        super().__init__()
-        self.unet = unet
+class _BaseConditionedDDPM(nn.Module):
+    """Common sampling logic for both ConcatConditionedDDPM and
+    SPADEConditionedDDPM. Subclasses implement `predict_noise`."""
 
     def predict_noise(
         self,
-        x_t: torch.Tensor,         # (B, 1, H, W) noisy image
-        label: torch.Tensor,       # (B, C, H, W) condition
-        timesteps: torch.Tensor,   # (B,) int64
+        x_t: torch.Tensor,
+        label: torch.Tensor,
+        timesteps: torch.Tensor,
     ) -> torch.Tensor:
-        x_in = torch.cat([x_t, label], dim=1)
-        return self.unet(x=x_in, timesteps=timesteps)
+        raise NotImplementedError
 
     @torch.no_grad()
     def sample(
@@ -124,15 +155,12 @@ class ConcatConditionedDDPM(nn.Module):
         """DDIM sampling with optional Classifier-Free Guidance.
 
         guidance_scale (w):
-            1.0  → conditional only (pure concat conditioning, no CFG)
+            1.0  → conditional only (no CFG)
             0.0  → unconditional only
-            >1.0 → CFG: amplifies the difference (cond − uncond), making
-                   the sample track the label more aggressively
-                   ε_guided = ε_uncond + w·(ε_cond − ε_uncond)
+            >1.0 → CFG: ε_guided = ε_uncond + w·(ε_cond − ε_uncond)
 
         At w=1.0 we skip the second forward pass — same compute as before.
-        At w≠1.0 each denoising step is 2× the compute (one cond + one uncond
-        forward), so a 50-step DDIM sample takes ~2× longer.
+        At w≠1.0 each denoising step is 2× the compute.
         """
         b = label.shape[0]
         h, w_img = label.shape[-2:]
@@ -155,3 +183,47 @@ class ConcatConditionedDDPM(nn.Module):
                 eps = eps_cond
             x, _ = scheduler.step(model_output=eps, timestep=int(t), sample=x)
         return x.clamp(-1.0, 1.0)
+
+
+class ConcatConditionedDDPM(_BaseConditionedDDPM):
+    """Wraps the U-Net so the training/inference loops don't need to know about
+    the channel-concat trick."""
+
+    def __init__(self, unet: DiffusionModelUNet):
+        super().__init__()
+        self.unet = unet
+
+    def predict_noise(
+        self,
+        x_t: torch.Tensor,         # (B, 1, H, W) noisy image
+        label: torch.Tensor,       # (B, C, H, W) condition
+        timesteps: torch.Tensor,   # (B,) int64
+    ) -> torch.Tensor:
+        x_in = torch.cat([x_t, label], dim=1)
+        return self.unet(x=x_in, timesteps=timesteps)
+
+
+class SPADEConditionedDDPM(_BaseConditionedDDPM):
+    """Exp 1b wrapper. Same external interface as ConcatConditionedDDPM —
+    train.py and inference_validate.py don't need to know which conditioning
+    mechanism is underneath.
+
+    The difference from ConcatConditionedDDPM:
+      - The U-Net's input is the noisy image alone (1 channel)
+      - The label is passed through to the U-Net as a separate argument,
+        which routes it to the SPADE modules at the bottleneck + decoder
+    """
+
+    def __init__(self, unet: DiffusionUNetSPADE):
+        super().__init__()
+        self.unet = unet
+
+    def predict_noise(
+        self,
+        x_t: torch.Tensor,         # (B, 1, H, W) noisy image
+        label: torch.Tensor,       # (B, C, H, W) condition
+        timesteps: torch.Tensor,   # (B,) int64
+    ) -> torch.Tensor:
+        return self.unet(x=x_t, timesteps=timesteps, label=label)
+
+

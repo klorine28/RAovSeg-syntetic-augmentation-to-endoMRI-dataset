@@ -36,14 +36,15 @@ import yaml
 
 from .dataset import D2SliceDataset
 from .model import (
-    ConcatConditionedDDPM,
     build_inference_scheduler,
-    build_unet,
+    build_model_from_cfg,
 )
 from .train import save_sample_grid
 
 
-def pick_top_n_by_foreground(dataset: D2SliceDataset, n: int) -> list[np.ndarray]:
+def pick_top_n_by_foreground(
+    dataset: D2SliceDataset, n: int
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Pick the n slices with the highest target-organ voxel count.
 
     Scoring uses channels 1-4 only (uterus, L-ov, R-ov, em) — the body
@@ -51,24 +52,35 @@ def pick_top_n_by_foreground(dataset: D2SliceDataset, n: int) -> list[np.ndarray
     because it's true everywhere inside the body and would dominate the
     ranking, defeating the purpose of picking "labels with anatomy."
 
-    Returns a list of (C, H, W) label arrays.
+    Returns:
+        (labels, real_images) where:
+          labels      — list of (C, H, W) one-hot label arrays
+          real_images — list of (1, H, W) real MRI slices in [-1, 1] range,
+                        matching the DDPM convention so save_sample_grid
+                        can convert them to [0, 1] for display the same
+                        way it does for synthetic samples
     """
-    scored: list[tuple[int, np.ndarray, str, int]] = []
+    scored: list[tuple[int, np.ndarray, np.ndarray, str, int]] = []
     for si in dataset.index:
-        lbl = dataset.labels[si.subject][:, si.z]   # (C, H, W)
+        lbl = dataset.labels[si.subject][:, si.z]            # (C, H, W) uint8
         # Slice [1:5] = channels 1, 2, 3, 4 (uterus, L-ov, R-ov, em).
         # Works for both 5-channel (legacy) and 6-channel (with body) layouts.
         fg = int(lbl[1:5].sum())
         if fg == 0:
             continue
-        scored.append((fg, lbl, si.subject, si.z))
+        # Real image in [0,1] from dataset cache → [-1,1] for DDPM convention
+        real_slice = dataset.images[si.subject][si.z]        # (H, W) float32
+        real_slice = (real_slice.astype(np.float32) * 2.0 - 1.0)[None, ...]  # (1,H,W)
+        scored.append((fg, lbl, real_slice, si.subject, si.z))
     scored.sort(key=lambda x: -x[0])
     picked = scored[:n]
     print(f"[infer] picked {len(picked)} labels by target-organ voxel count:")
-    for i, (fg, lbl, subj, z) in enumerate(picked):
+    for i, (fg, lbl, _, subj, z) in enumerate(picked):
         per_ch = {c: int((lbl[c] > 0).sum()) for c in range(lbl.shape[0])}
         print(f"  [{i}] {subj} z={z}: target_fg={fg}, per_channel={per_ch}")
-    return [lbl for _, lbl, _, _ in picked]
+    labels = [lbl for _, lbl, _, _, _ in picked]
+    reals = [img for _, _, img, _, _ in picked]
+    return labels, reals
 
 
 def main():
@@ -80,6 +92,8 @@ def main():
                         help="Number of sample slices to generate (default 4)")
     parser.add_argument("--guidance-scale", type=float, default=None,
                         help="CFG guidance scale (overrides YAML; 1.0=disable, 3-5=typical)")
+    parser.add_argument("--num-inference-steps", type=int, default=None,
+                        help="DDIM steps (overrides YAML; typical 50, more is smoother)")
     parser.add_argument("--no-ema", action="store_true",
                         help="Use training weights instead of EMA (default: EMA if present in ckpt)")
     args = parser.parse_args()
@@ -104,14 +118,14 @@ def main():
         image_size=dcfg["image_size"],
     )
 
-    labels_np = pick_top_n_by_foreground(ds, args.n)
+    labels_np, reals_np = pick_top_n_by_foreground(ds, args.n)
     if not labels_np:
         raise RuntimeError("No slices with any foreground voxels found in train split.")
     labels = torch.from_numpy(np.stack(labels_np)).float().to(device)
+    reals = torch.from_numpy(np.stack(reals_np)).float().to(device)
 
     # --- model + scheduler ---
-    unet = build_unet(cfg["model"])
-    model = ConcatConditionedDDPM(unet).to(device)
+    model = build_model_from_cfg(cfg).to(device)
     ckpt = torch.load(args.ckpt, map_location=device, weights_only=False)
     # Prefer EMA weights if present in the checkpoint — they produce cleaner
     # samples. Override with --no-ema to use training weights instead.
@@ -124,9 +138,13 @@ def main():
     model.eval()
     print(f"[infer] loaded ckpt from step {ckpt['step']}, weights={weight_source}")
 
-    infer_sched = build_inference_scheduler(
-        cfg["diffusion"], cfg["sampling"]["num_inference_steps"]
+    num_inference_steps = (
+        args.num_inference_steps
+        if args.num_inference_steps is not None
+        else cfg["sampling"]["num_inference_steps"]
     )
+    infer_sched = build_inference_scheduler(cfg["diffusion"], num_inference_steps)
+    print(f"[infer] num_inference_steps={num_inference_steps}")
 
     # Resolve guidance scale: CLI overrides YAML; default 1.0 (no CFG) if absent.
     if args.guidance_scale is not None:
@@ -142,7 +160,7 @@ def main():
                                guidance_scale=guidance, progress=True)
 
     out_path = Path(args.out)
-    save_sample_grid(samples, labels, out_path)
+    save_sample_grid(samples, labels, out_path, real_images=reals)
     print(f"[infer] wrote {out_path}")
 
 

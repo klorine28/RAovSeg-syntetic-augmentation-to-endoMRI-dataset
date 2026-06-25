@@ -1,0 +1,65 @@
+data:
+  image_size: 512
+  num_label_channels: 6
+  num_workers: 4
+  ovary_oversample_weight: 3.0
+  preprocessed_root: /mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D2
+  sequence: T2FS
+  split_file: /mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d2_generator_split.json
+diffusion:
+  beta_end: 0.02
+  beta_schedule: linear_beta
+  beta_start: 0.0001
+  num_train_timesteps: 1000
+  prediction_type: epsilon
+discriminator:
+  base_channels: 64
+  lambda_peak: 0.01
+  lambda_ramp_end: 30000
+  lambda_warmup_end: 10000
+  lr: 2.5e-05
+  type: patchgan
+  use_spectral_norm: true
+  weight_decay: 0.0
+experiment:
+  name: exp1c_concat
+  output_dir: /mnt/parscratch/users/ijp25lg/synth_mri/runs/exp1c_concat
+  resume: true
+  seed: 42
+model:
+  attention_levels:
+  - false
+  - false
+  - false
+  - true
+  in_channels: 7
+  norm_num_groups: 32
+  num_channels:
+  - 64
+  - 128
+  - 256
+  - 256
+  num_head_channels:
+  - 0
+  - 0
+  - 0
+  - 32
+  num_res_blocks: 2
+  out_channels: 1
+  type: concat
+sampling:
+  guidance_scale: 3.0
+  num_inference_steps: 100
+  num_samples_per_grid: 4
+training:
+  amp: true
+  batch_size: 4
+  cfg_dropout_prob: 0.1
+  ckpt_every: 5000
+  ema_decay: 0.9999
+  grad_clip: 1.0
+  log_every: 50
+  lr: 0.0001
+  sample_every: 5000
+  total_steps: 100000
+  weight_decay: 0.0

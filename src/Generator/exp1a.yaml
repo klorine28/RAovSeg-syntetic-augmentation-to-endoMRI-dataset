@@ -21,6 +21,7 @@ data:
   num_workers: 4
 
 model:
+  type: "concat"                # Exp 1a: channel-concat conditioning at input
   in_channels: 7                # 1 image + 6 labels (CONCAT conditioning)
   out_channels: 1               # predicted noise on image
   num_channels: [64, 128, 256, 256]
@@ -62,7 +63,18 @@ training:
   ema_decay: 0.9999
 
 sampling:
-  num_inference_steps: 50       # DDIM at inference; full T=1000 used in training
+  # June 2026 update — per-variant guidance optima. The June Tier 1 sweep found
+  # g=2.0 best for 1b (SPADE), but the explainability run at g=2.0 confirmed
+  # 1a was *under-conditioned* at that setting: synthetic images were dark and
+  # featureless, and per-channel counterfactual responsiveness was muted.
+  # Re-running 1a at g=3.0 restored visible organs and strong per-channel
+  # counterfactual diffs.
+  #
+  # Decision: keep DDIM steps shared at 100 (sampler-side parity) but allow
+  # the guidance scale to differ per variant. 1a → g=3.0; 1b → g=2.0.
+  # See TIER1_TUNING_AND_EXPLAINABILITY.md §10 for the full rationale and
+  # the empirical evidence (1a at g=2.0 vs g=3.0 explainability figures).
+  num_inference_steps: 100      # DDIM at inference; full T=1000 used in training
   num_samples_per_grid: 4
   # CFG guidance scale: 1.0 = conditional only (no guidance), 0.0 = unconditional,
   # >1.0 = amplified conditioning. SD uses 7.5 by default; for small medical

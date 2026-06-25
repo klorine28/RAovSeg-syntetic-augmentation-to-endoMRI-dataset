@@ -1,0 +1,65 @@
+# =============================================================================
+# Experiment 1b: 2D conditional DDPM with SPADE conditioning
+# Phase 1 second arm. Same architecture and hyperparameters as 1a; the ONLY
+# difference is that label conditioning enters through SPADE modules at the
+# bottleneck + every decoder ResBlock instead of being concatenated at input.
+# =============================================================================
+
+experiment:
+  name: "exp1b_ddpm_spade"
+  seed: 42
+  output_dir: "/mnt/parscratch/users/ijp25lg/synth_mri/runs/exp1b"
+  resume: true                  # if a checkpoint is in output_dir, resume from it
+
+data:
+  # Same 6-channel labels as 1a — identical preprocessed dataset, same split.
+  preprocessed_root: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D2"
+  split_file: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d2_generator_split.json"
+  sequence: "T2FS"
+  image_size: 512
+  num_label_channels: 6         # outside_body, uterus, L-ov, R-ov, em, body_other
+  ovary_oversample_weight: 3.0
+  num_workers: 4
+
+model:
+  type: "spade"                 # Exp 1b: SPADE conditioning at decoder + bottleneck
+  in_channels: 1                # PURE SPADE — noisy image only, no concat at input
+  out_channels: 1               # predicted noise on image
+  # Backbone parity with 1a — same widths, same attention positions, same blocks.
+  num_channels: [64, 128, 256, 256]
+  attention_levels: [false, false, false, true]   # 64² only (memory budget)
+  num_res_blocks: 2
+  spade_hidden: 64              # MLP hidden width inside each SPADE module
+
+diffusion:
+  num_train_timesteps: 1000
+  beta_schedule: "linear_beta"   # MONAI Generative registry key — not "linear"
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: "epsilon"
+
+training:
+  batch_size: 4                 # same memory budget as 1a; SPADE adds <1 GiB
+  total_steps: 80000
+  lr: 1.0e-4
+  weight_decay: 0.0
+  grad_clip: 1.0
+  amp: true                     # bf16 autocast
+  log_every: 50
+  sample_every: 5000
+  ckpt_every: 5000
+  cfg_dropout_prob: 0.1         # same CFG dropout as 1a — zeros the 6-channel
+                                # label tensor; SPADE collapses to its learned
+                                # baseline (the "null conditioning" pathway)
+  ema_decay: 0.9999
+
+sampling:
+  # June 2026 update — per-variant guidance optima. Tier 1 sweep found g=2.0
+  # is the best guidance for 1b SPADE: it cleans the CFG-amplification grain
+  # observed at the original g=3.0. The accompanying 1a sweep + explainability
+  # confirmed 1a needs g=3.0 instead (under-conditioned at g=2.0). DDIM steps
+  # are shared at 100 across both variants — only guidance differs.
+  # See TIER1_TUNING_AND_EXPLAINABILITY.md §10 for the full rationale.
+  num_inference_steps: 100      # DDIM
+  num_samples_per_grid: 4
+  guidance_scale: 2.0           # 1b-specific optimum; 1a uses 3.0

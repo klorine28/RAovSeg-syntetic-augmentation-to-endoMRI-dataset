@@ -23,10 +23,9 @@ from torch.utils.data import DataLoader
 
 from .dataset import D2SliceDataset
 from .model import (
-    ConcatConditionedDDPM,
     build_inference_scheduler,
+    build_model_from_cfg,
     build_train_scheduler,
-    build_unet,
 )
 
 
@@ -59,8 +58,7 @@ def main(cfg_path: str):
           f"{batch['label'].sum(dim=(0, 2, 3)).tolist()}")
     print(f"[smoke] has_ovary in batch: {batch['has_ovary'].tolist()}")
 
-    unet = build_unet(cfg["model"])
-    model = ConcatConditionedDDPM(unet).to(device)
+    model = build_model_from_cfg(cfg).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"[smoke] U-Net params: {n_params/1e6:.1f}M")
 

@@ -1,0 +1,33 @@
+{
+  "AILM_per_channel": {
+    "outside_body": 1.0,
+    "uterus": 1.0,
+    "ov_L": 1.0,
+    "ov_R": NaN,
+    "em": 1.0,
+    "body_other": 1.0000001192092896
+  },
+  "attribution_sparsity_per_channel": {
+    "outside_body": 0.7226107618160067,
+    "uterus": 0.992908003028445,
+    "ov_L": 0.9778716264824093,
+    "ov_R": NaN,
+    "em": 0.9675406052356584,
+    "body_other": 0.7648142708864516
+  },
+  "CLR_per_channel": {
+    "uterus": 0.012652353383600712,
+    "ov_L": 0.04352057725191116,
+    "ov_R": NaN,
+    "em": 0.03567558154463768
+  },
+  "meta": {
+    "sample_idx": 2,
+    "variant": "exp1a_ddpm_concat",
+    "ckpt_step": 80000,
+    "weights": "EMA",
+    "guidance_scale": 3.0,
+    "num_inference_steps": 100,
+    "attn_hook_target": "unet.middle_block"
+  }
+}

@@ -24,11 +24,18 @@ from torch.utils.tensorboard import SummaryWriter
 
 from .dataset import D2SliceDataset
 from .model import (
-    ConcatConditionedDDPM,
     EMAModel,
     build_inference_scheduler,
+    build_model_from_cfg,
     build_train_scheduler,
-    build_unet,
+)
+from .patchgan import (
+    PatchGAN,
+    discriminator_accuracy,
+    discriminator_loss,
+    estimate_x0_from_eps,
+    generator_adv_loss,
+    lambda_schedule,
 )
 
 
@@ -42,7 +49,10 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-def save_ckpt(path: Path, *, model, optim, step: int, cfg: dict, ema=None) -> None:
+def save_ckpt(
+    path: Path, *, model, optim, step: int, cfg: dict,
+    ema=None, discriminator=None, optim_d=None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "model": model.state_dict(),
@@ -52,6 +62,10 @@ def save_ckpt(path: Path, *, model, optim, step: int, cfg: dict, ema=None) -> No
     }
     if ema is not None:
         payload["ema"] = ema.state_dict()
+    if discriminator is not None:
+        payload["discriminator"] = discriminator.state_dict()
+    if optim_d is not None:
+        payload["optim_d"] = optim_d.state_dict()
     torch.save(payload, path)
     print(f"[ckpt] saved {path} @ step {step}")
 
@@ -67,7 +81,22 @@ def load_latest_ckpt(ckpt_dir: Path):
     return torch.load(latest, map_location="cpu")
 
 
-def save_sample_grid(samples: torch.Tensor, labels: torch.Tensor, out_path: Path):
+def save_sample_grid(
+    samples: torch.Tensor,
+    labels: torch.Tensor,
+    out_path: Path,
+    real_images: torch.Tensor | None = None,
+):
+    """Render one PNG with one row per sample. Columns are:
+
+        [real]  synthetic  overlay  input-label-argmax
+
+    where the leading 'real' column is shown ONLY if `real_images` is given
+    — i.e. when the caller has the actual MRI slice that the label was
+    extracted from (the case during training where labels are taken from
+    the dataset's first batch and during inference_validate when labels
+    are picked directly from the dataset index).
+    """
     import matplotlib
 
     matplotlib.use("Agg")
@@ -79,13 +108,28 @@ def save_sample_grid(samples: torch.Tensor, labels: torch.Tensor, out_path: Path
     img = np.clip(img, 0.0, 1.0)
     lbl = labels.detach().cpu().numpy()
 
-    fig, axes = plt.subplots(n, 3, figsize=(9, 3 * n))
+    has_real = real_images is not None
+    if has_real:
+        real = (real_images.detach().cpu().numpy() + 1.0) / 2.0
+        real = np.clip(real, 0.0, 1.0)
+
+    n_cols = 4 if has_real else 3
+    fig, axes = plt.subplots(n, n_cols, figsize=(3 * n_cols, 3 * n))
     if n == 1:
         axes = axes[None, :]
+
+    col = 0
+    if has_real:
+        for i in range(n):
+            axes[i, col].imshow(real[i, 0], cmap="gray", vmin=0, vmax=1)
+            axes[i, col].set_title("real (source of the label)")
+            axes[i, col].axis("off")
+        col += 1
+
     for i in range(n):
-        axes[i, 0].imshow(img[i, 0], cmap="gray", vmin=0, vmax=1)
-        axes[i, 0].set_title("synthetic")
-        axes[i, 0].axis("off")
+        axes[i, col].imshow(img[i, 0], cmap="gray", vmin=0, vmax=1)
+        axes[i, col].set_title("synthetic")
+        axes[i, col].axis("off")
 
         rgb = np.stack([img[i, 0]] * 3, axis=-1)
         if lbl.shape[1] >= 4:
@@ -98,14 +142,14 @@ def save_sample_grid(samples: torch.Tensor, labels: torch.Tensor, out_path: Path
             if lbl.shape[1] >= 5:
                 em_mask = lbl[i, 4] > 0.5
                 rgb[em_mask] = [0.0, 1.0, 0.0]   # green — endometrioma
-        axes[i, 1].imshow(rgb)
-        axes[i, 1].set_title("overlay (Y=ut, R=L-ov, B=R-ov, G=em)")
-        axes[i, 1].axis("off")
+        axes[i, col + 1].imshow(rgb)
+        axes[i, col + 1].set_title("overlay (Y=ut, R=L-ov, B=R-ov, G=em)")
+        axes[i, col + 1].axis("off")
 
         argmax_lbl = lbl[i].argmax(axis=0)
-        axes[i, 2].imshow(argmax_lbl, cmap="tab10", vmin=0, vmax=lbl.shape[1] - 1)
-        axes[i, 2].set_title("input label (argmax)")
-        axes[i, 2].axis("off")
+        axes[i, col + 2].imshow(argmax_lbl, cmap="tab10", vmin=0, vmax=lbl.shape[1] - 1)
+        axes[i, col + 2].set_title("input label (argmax)")
+        axes[i, col + 2].axis("off")
     plt.tight_layout()
     plt.savefig(out_path, dpi=80)
     plt.close(fig)
@@ -168,8 +212,7 @@ def main(cfg_path: str):
     )
 
     # --- model --- #
-    unet = build_unet(cfg["model"])
-    model = ConcatConditionedDDPM(unet).to(device)
+    model = build_model_from_cfg(cfg).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"[setup] U-Net params: {n_params/1e6:.1f}M")
 
@@ -183,6 +226,33 @@ def main(cfg_path: str):
         lr=cfg["training"]["lr"],
         weight_decay=cfg["training"]["weight_decay"],
     )
+
+    # --- Discriminator (Exp 1c only) --- #
+    # Only constructed when the YAML has a `discriminator:` block. Keeps 1a/1b
+    # training paths unchanged.
+    dcfg_disc = cfg.get("discriminator")
+    discriminator: torch.nn.Module | None = None
+    optim_d = None
+    if dcfg_disc is not None:
+        if dcfg_disc.get("type", "patchgan") != "patchgan":
+            raise ValueError(f"Unknown discriminator type: {dcfg_disc.get('type')}")
+        discriminator = PatchGAN(
+            image_channels=1,
+            label_channels=cfg["data"]["num_label_channels"],
+            base_channels=int(dcfg_disc.get("base_channels", 64)),
+            use_spectral_norm=bool(dcfg_disc.get("use_spectral_norm", True)),
+        ).to(device)
+        d_params = sum(p.numel() for p in discriminator.parameters())
+        print(f"[setup] PatchGAN params: {d_params/1e6:.1f}M")
+        optim_d = torch.optim.AdamW(
+            discriminator.parameters(),
+            lr=float(dcfg_disc["lr"]),
+            weight_decay=float(dcfg_disc.get("weight_decay", 0.0)),
+        )
+        print(f"[setup] D optimiser: AdamW lr={dcfg_disc['lr']}")
+        print(f"[setup] λ schedule: warmup_end={dcfg_disc['lambda_warmup_end']} "
+              f"ramp_end={dcfg_disc['lambda_ramp_end']} "
+              f"peak={dcfg_disc['lambda_peak']}")
 
     # --- EMA (created BEFORE resume so we can load saved EMA state) --- #
     ema_decay = float(cfg["training"].get("ema_decay", 0.0))
@@ -199,6 +269,11 @@ def main(cfg_path: str):
         if ema is not None and "ema" in resume_payload:
             ema.load_state_dict(resume_payload["ema"])
             print(f"[ckpt] resumed EMA state from step {start_step - 1}")
+        if discriminator is not None and "discriminator" in resume_payload:
+            discriminator.load_state_dict(resume_payload["discriminator"])
+            if optim_d is not None and "optim_d" in resume_payload:
+                optim_d.load_state_dict(resume_payload["optim_d"])
+            print(f"[ckpt] resumed discriminator state from step {start_step - 1}")
 
     writer = SummaryWriter(log_dir=str(tb_dir))
 
@@ -246,6 +321,10 @@ def main(cfg_path: str):
         print(f"[setup] WARNING: no batch met required_fg={required_fg} after 20 "
               f"attempts; using best ({best_fg}/{n_grid} with foreground)")
     fixed_labels = chosen_batch["label"][:n_grid].to(device)
+    # Keep the real MRI slices that those labels came from. They show up as
+    # the leftmost column in every periodic sample grid, so you can compare
+    # the synthetic against the real source slice at a glance.
+    fixed_real_images = chosen_batch["image"][:n_grid].to(device)
 
     model.train()
     step = start_step
@@ -278,10 +357,50 @@ def main(cfg_path: str):
 
         with torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
             eps_pred = model.predict_noise(x_t, lbl, t)
-            loss = F.mse_loss(eps_pred.float(), noise.float())
+            loss_diff = F.mse_loss(eps_pred.float(), noise.float())
+
+        # --- Conditional PatchGAN block (Exp 1c only) --- #
+        # Stays identity-no-op when discriminator is None (1a/1b paths).
+        loss_g_adv = torch.tensor(0.0, device=device)
+        loss_d = torch.tensor(0.0, device=device)
+        d_real_acc, d_fake_acc = 0.0, 0.0
+        lam = 0.0
+        if discriminator is not None:
+            lam = lambda_schedule(
+                step,
+                warmup_end=int(dcfg_disc["lambda_warmup_end"]),
+                ramp_end=int(dcfg_disc["lambda_ramp_end"]),
+                peak=float(dcfg_disc["lambda_peak"]),
+            )
+            # The label fed to D uses the ORIGINAL (non-CFG-dropped) version
+            # so D always sees a meaningful label-image consistency signal,
+            # regardless of whether the generator was given a dropped label
+            # this step. We grab it from the batch again.
+            lbl_d = batch["label"].to(device, non_blocking=True)
+            # Single-step x̂_0 estimate — see patchgan.estimate_x0_from_eps docstring
+            x0_hat = estimate_x0_from_eps(x_t, eps_pred.detach().float(),
+                                          train_sched, t)
+
+            if lam > 0.0:
+                # --- D step: real vs fake.detach() ---
+                d_real_logits = discriminator(x0, lbl_d)
+                d_fake_logits = discriminator(x0_hat.detach(), lbl_d)
+                loss_d = discriminator_loss(d_real_logits, d_fake_logits)
+                optim_d.zero_grad(set_to_none=True)
+                loss_d.backward()
+                torch.nn.utils.clip_grad_norm_(discriminator.parameters(), grad_clip)
+                optim_d.step()
+                d_real_acc, d_fake_acc = discriminator_accuracy(d_real_logits, d_fake_logits)
+
+                # --- G adversarial loss: D should call our fakes 'real' ---
+                # x0_hat WITHOUT detach so gradient flows back into G.
+                d_fake_logits_for_g = discriminator(x0_hat, lbl_d)
+                loss_g_adv = generator_adv_loss(d_fake_logits_for_g)
+
+        loss_g_total = loss_diff + lam * loss_g_adv
 
         optim.zero_grad(set_to_none=True)
-        loss.backward()
+        loss_g_total.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optim.step()
 
@@ -291,9 +410,21 @@ def main(cfg_path: str):
         if step % log_every == 0:
             dt = time.time() - t0
             it_per_s = (step - start_step + 1) / max(dt, 1e-6)
-            print(f"[step {step:>6d}/{total_steps}] L_diff={loss.item():.4f} "
-                  f"({it_per_s:.2f} it/s)")
-            writer.add_scalar("loss/L_diff", loss.item(), step)
+            if discriminator is not None:
+                print(f"[step {step:>6d}/{total_steps}] L_diff={loss_diff.item():.4f} "
+                      f"L_adv={loss_g_adv.item():.4f} L_D={loss_d.item():.4f} "
+                      f"λ={lam:.4f} D_acc(r/f)={d_real_acc:.2f}/{d_fake_acc:.2f} "
+                      f"({it_per_s:.2f} it/s)")
+                writer.add_scalar("loss/L_diff", loss_diff.item(), step)
+                writer.add_scalar("loss/L_adv_g", loss_g_adv.item(), step)
+                writer.add_scalar("loss/L_d", loss_d.item(), step)
+                writer.add_scalar("loss/lambda", lam, step)
+                writer.add_scalar("disc/acc_real", d_real_acc, step)
+                writer.add_scalar("disc/acc_fake", d_fake_acc, step)
+            else:
+                print(f"[step {step:>6d}/{total_steps}] L_diff={loss_diff.item():.4f} "
+                      f"({it_per_s:.2f} it/s)")
+                writer.add_scalar("loss/L_diff", loss_diff.item(), step)
             writer.add_scalar("speed/it_per_s", it_per_s, step)
 
         if step > 0 and step % sample_every == 0:
@@ -303,13 +434,16 @@ def main(cfg_path: str):
             with torch.no_grad():
                 samples = sample_model.sample(fixed_labels, infer_sched, device,
                                               guidance_scale=guidance_scale)
-            save_sample_grid(samples, fixed_labels, sample_dir / f"step_{step:06d}.png")
+            save_sample_grid(samples, fixed_labels,
+                             sample_dir / f"step_{step:06d}.png",
+                             real_images=fixed_real_images)
             if ema is None:
                 model.train()  # EMA model stays in eval; training model returns to train
 
         if step > 0 and step % ckpt_every == 0:
             save_ckpt(ckpt_dir / f"step_{step:06d}.pt",
-                      model=model, optim=optim, step=step, cfg=cfg, ema=ema)
+                      model=model, optim=optim, step=step, cfg=cfg, ema=ema,
+                      discriminator=discriminator, optim_d=optim_d)
 
         step += 1
 
@@ -320,7 +454,9 @@ def main(cfg_path: str):
     with torch.no_grad():
         samples = sample_model.sample(fixed_labels, infer_sched, device,
                                       guidance_scale=guidance_scale)
-    save_sample_grid(samples, fixed_labels, sample_dir / f"step_{step:06d}_final.png")
+    save_sample_grid(samples, fixed_labels,
+                     sample_dir / f"step_{step:06d}_final.png",
+                     real_images=fixed_real_images)
     writer.close()
     print(f"[done] total wall time: {(time.time()-t0)/3600:.2f}h")
 

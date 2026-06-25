@@ -4,3 +4,7 @@ monai>=1.3
 SimpleITK>=2.3
 scipy>=1.11
 matplotlib>=3.7
+# For src/Generator/quality_metrics.py (Exp 5 quality metrics)
+pytorch-fid>=0.3
+lpips>=0.1.4
+pillow>=10.0
