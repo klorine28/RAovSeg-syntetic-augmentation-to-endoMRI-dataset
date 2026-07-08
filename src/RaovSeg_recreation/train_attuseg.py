@@ -207,18 +207,31 @@ def evaluate(model, loader, criterion):
 def main():
     parser = argparse.ArgumentParser(description="Train AttUSeg segmentation network")
     parser.add_argument("--data-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "processed" / "train_val")
+                        default=Path(__file__).resolve().parents[2] / "data" / "processed" / "train_val")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "models")
+                        default=Path(__file__).resolve().parents[2] / "models")
     parser.add_argument("--epochs", type=int, default=EPOCHS)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--lr", type=float, default=LR)
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for train/val split, model init, augmentation, "
+                             "and DataLoader shuffle. Default 42 reproduces the original "
+                             "baseline; multi-seed runs pass different values.")
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Seed every source of randomness so 3-seed augmentation runs produce
+    # genuinely independent models.
+    import random as _random
+    _random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
     # Subject-level split (paper: "subject-level independence across subsets")
-    train_subjects, val_subjects = split_subjects(args.data_dir, TRAIN_RATIO)
+    train_subjects, val_subjects = split_subjects(args.data_dir, TRAIN_RATIO, seed=args.seed)
     print(f"Train subjects ({len(train_subjects)}): {train_subjects}")
     print(f"Val subjects ({len(val_subjects)}): {val_subjects}")
 

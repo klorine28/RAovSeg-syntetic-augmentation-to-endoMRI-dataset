@@ -1,0 +1,62 @@
+{
+  "seeds": [
+    {
+      "seed": 0,
+      "status": "ok",
+      "dsc_mean": 0.2755,
+      "dsc_std": 0.2531,
+      "log": "logs/raov_aug_spade_s0_10529532.out"
+    },
+    {
+      "seed": 1,
+      "status": "ok",
+      "dsc_mean": 0.162,
+      "dsc_std": 0.2425,
+      "log": "logs/raov_aug_spade_s1_10529533.out"
+    },
+    {
+      "seed": 2,
+      "status": "ok",
+      "dsc_mean": 0.2167,
+      "dsc_std": 0.2655,
+      "log": "logs/raov_aug_spade_s2_10529534.out"
+    },
+    {
+      "seed": 3,
+      "status": "ok",
+      "dsc_mean": 0.1014,
+      "dsc_std": 0.175,
+      "log": "logs/raov_aug_spade_s3_10545349.out"
+    },
+    {
+      "seed": 4,
+      "status": "ok",
+      "dsc_mean": 0.1308,
+      "dsc_std": 0.2299,
+      "log": "logs/raov_aug_spade_s4_10545350.out"
+    },
+    {
+      "seed": 5,
+      "status": "ok",
+      "dsc_mean": 0.16,
+      "dsc_std": 0.2405,
+      "log": "logs/raov_aug_spade_s5_10545351.out"
+    },
+    {
+      "seed": 6,
+      "status": "ok",
+      "dsc_mean": 0.2007,
+      "dsc_std": 0.2725,
+      "log": "logs/raov_aug_spade_s6_10545352.out"
+    },
+    {
+      "seed": 7,
+      "status": "ok",
+      "dsc_mean": 0.1793,
+      "dsc_std": 0.2118,
+      "log": "logs/raov_aug_spade_s7_10545353.out"
+    }
+  ],
+  "n_completed": 8,
+  "n_expected": 8
+}

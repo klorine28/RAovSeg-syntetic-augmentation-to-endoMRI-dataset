@@ -25,7 +25,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from evaluate import load_resclass, load_attuseg, DEVICE
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "RAovSeg"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "RAovSeg"))
 from RAovSeg_tools import postprocess_, dsc_cal_np
 
 
@@ -73,11 +73,11 @@ def predict_subject_cached(image, label, resclass, attuseg, closing_iters: int):
 def main():
     parser = argparse.ArgumentParser(description="Sweep closing_iterations for RAovSeg")
     parser.add_argument("--test-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "processed" / "test")
+                        default=Path(__file__).resolve().parents[2] / "data" / "processed" / "test")
     parser.add_argument("--models-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "models")
+                        default=Path(__file__).resolve().parents[2] / "models")
     parser.add_argument("--output-csv", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "predictions" / "sweep_postproc_results.csv")
+                        default=Path(__file__).resolve().parents[2] / "data" / "predictions" / "sweep_postproc_results.csv")
     parser.add_argument("--grid", type=int, nargs="+", default=CLOSING_ITERATIONS_GRID,
                         help="closing_iterations values to sweep")
     args = parser.parse_args()

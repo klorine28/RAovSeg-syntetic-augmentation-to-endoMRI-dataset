@@ -1,0 +1,83 @@
+# =============================================================================
+# Exp 2 tuning attempt: same cross-domain setup as exp2 but with adversarial
+# λ_peak bumped 5× (0.01 → 0.05).
+#
+# Motivation: exp2 samples plateaued at "gray-blob" body silhouettes with no
+# clear T2FS style. Diagnosis is that the DDPM MSE loss on D1 T2 dominated the
+# adversarial signal at λ=0.01. A 5× bump gives adversarial more voting power.
+# Risk: G stops matching D1 anatomy and produces generic T2FS-looking blobs,
+# or training destabilises. Watch sample grids at step 15k/30k and abort if
+# quality worsens vs exp2.
+#
+# Everything else — data schema (dual D1 gen + D2 disc), unconditional D,
+# backbone, EMA, schedules — inherits from exp2.yaml verbatim.
+# =============================================================================
+
+experiment:
+  name: "exp2_lam05"
+  seed: 42
+  output_dir: "/mnt/parscratch/users/ijp25lg/synth_mri/runs/exp2_lam05"
+  resume: true
+
+data:
+  generator:
+    preprocessed_root: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D1"
+    split_file: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d1_generator_split.json"
+    sequence: "T2"
+    image_size: 512
+    num_label_channels: 6
+    ovary_oversample_weight: 3.0
+    num_workers: 4
+  discriminator:
+    preprocessed_root: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/processed_generator/D2"
+    split_file: "/mnt/parscratch/users/ijp25lg/synth_mri/EndometriosisDataset/data/splits/d2_generator_split.json"
+    sequence: "T2FS"
+    image_size: 512
+    num_label_channels: 6
+    ovary_oversample_weight: 3.0
+    num_workers: 2
+
+model:
+  type: "spade"
+  in_channels: 1
+  out_channels: 1
+  num_channels: [64, 128, 256, 256]
+  attention_levels: [false, false, false, true]
+  num_res_blocks: 2
+  spade_hidden: 64
+
+discriminator:
+  type: "patchgan"
+  base_channels: 64
+  use_spectral_norm: true
+  lr: 2.5e-5
+  weight_decay: 0.0
+  lambda_warmup_end: 10000
+  lambda_ramp_end: 30000
+  lambda_peak: 0.05   # ← 5× exp2's 0.01
+  unconditional: true
+
+diffusion:
+  num_train_timesteps: 1000
+  beta_schedule: "linear_beta"
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: "epsilon"
+
+training:
+  batch_size: 4
+  total_steps: 100000
+  lr: 1.0e-4
+  weight_decay: 0.0
+  grad_clip: 1.0
+  amp: true
+  log_every: 50
+  sample_every: 5000
+  ckpt_every: 5000
+  cfg_dropout_prob: 0.1
+  ema_decay: 0.9999
+
+sampling:
+  num_inference_steps: 100
+  num_samples_per_grid: 4
+  guidance_scale: 2.0

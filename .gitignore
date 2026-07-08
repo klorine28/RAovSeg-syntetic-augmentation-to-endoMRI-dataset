@@ -37,6 +37,12 @@ RAovSeg/
 # --- Generated artefacts ---
 exp1a_samples*/
 exp1b_samples*/
+exp1c_samples*/
+exp1c_spade_samples/
+exp1c_concat_samples/
+exp2_samples/
+exp2_lam05_samples/
+exp2_lam50_samples/
 *.npy
 *.pt
 *.ckpt

@@ -191,25 +191,65 @@ def main(cfg_path: str):
                 shutil.rmtree(sub)
 
     # --- data --- #
+    # Two schemas supported:
+    #   Phase 1 (single cohort): `data:` has preprocessed_root/split_file at
+    #     top level. The one loader supplies both DDPM samples and D's real
+    #     path.
+    #   Phase 2 (cross-domain): `data.generator:` and `data.discriminator:`
+    #     hold two separate cohort configs. Generator loader supplies DDPM
+    #     samples (D1 T2). Discriminator loader supplies D's real path only
+    #     (D2 T2FS). The generated fake is critiqued against D2's style.
     dcfg = cfg["data"]
-    ds = D2SliceDataset(
-        preprocessed_root=dcfg["preprocessed_root"],
-        split_file=dcfg["split_file"],
-        split="train",
-        sequence=dcfg["sequence"],
-        num_label_channels=dcfg["num_label_channels"],
-        image_size=dcfg["image_size"],
-    )
-    sampler = ds.make_weighted_sampler(dcfg["ovary_oversample_weight"])
-    loader = DataLoader(
-        ds,
-        batch_size=cfg["training"]["batch_size"],
-        sampler=sampler,
-        num_workers=dcfg["num_workers"],
-        pin_memory=True,
-        drop_last=True,
-        persistent_workers=dcfg["num_workers"] > 0,
-    )
+    cross_domain = "generator" in dcfg and "discriminator" in dcfg
+
+    def _make_loader(sub_dcfg: dict, tag: str) -> DataLoader:
+        ds_ = D2SliceDataset(
+            preprocessed_root=sub_dcfg["preprocessed_root"],
+            split_file=sub_dcfg["split_file"],
+            split="train",
+            sequence=sub_dcfg["sequence"],
+            num_label_channels=sub_dcfg["num_label_channels"],
+            image_size=sub_dcfg["image_size"],
+        )
+        sampler_ = ds_.make_weighted_sampler(sub_dcfg["ovary_oversample_weight"])
+        print(f"[setup] {tag} loader: {len(ds_)} slices from "
+              f"{sub_dcfg['preprocessed_root']} ({sub_dcfg['sequence']})")
+        return DataLoader(
+            ds_,
+            batch_size=cfg["training"]["batch_size"],
+            sampler=sampler_,
+            num_workers=sub_dcfg["num_workers"],
+            pin_memory=True,
+            drop_last=True,
+            persistent_workers=sub_dcfg["num_workers"] > 0,
+        )
+
+    if cross_domain:
+        print("[setup] cross-domain mode: separate generator + discriminator loaders")
+        loader = _make_loader(dcfg["generator"], "generator (D1 T2)")
+        disc_loader = _make_loader(dcfg["discriminator"], "discriminator (D2 T2FS)")
+        num_label_channels = dcfg["generator"]["num_label_channels"]
+    else:
+        ds = D2SliceDataset(
+            preprocessed_root=dcfg["preprocessed_root"],
+            split_file=dcfg["split_file"],
+            split="train",
+            sequence=dcfg["sequence"],
+            num_label_channels=dcfg["num_label_channels"],
+            image_size=dcfg["image_size"],
+        )
+        sampler = ds.make_weighted_sampler(dcfg["ovary_oversample_weight"])
+        loader = DataLoader(
+            ds,
+            batch_size=cfg["training"]["batch_size"],
+            sampler=sampler,
+            num_workers=dcfg["num_workers"],
+            pin_memory=True,
+            drop_last=True,
+            persistent_workers=dcfg["num_workers"] > 0,
+        )
+        disc_loader = None
+        num_label_channels = dcfg["num_label_channels"]
 
     # --- model --- #
     model = build_model_from_cfg(cfg).to(device)
@@ -238,10 +278,13 @@ def main(cfg_path: str):
             raise ValueError(f"Unknown discriminator type: {dcfg_disc.get('type')}")
         discriminator = PatchGAN(
             image_channels=1,
-            label_channels=cfg["data"]["num_label_channels"],
+            label_channels=num_label_channels,
             base_channels=int(dcfg_disc.get("base_channels", 64)),
             use_spectral_norm=bool(dcfg_disc.get("use_spectral_norm", True)),
         ).to(device)
+        d_unconditional = bool(dcfg_disc.get("unconditional", False))
+        if d_unconditional:
+            print("[setup] D is UNCONDITIONAL: label channel zeroed before D forward")
         d_params = sum(p.numel() for p in discriminator.parameters())
         print(f"[setup] PatchGAN params: {d_params/1e6:.1f}M")
         optim_d = torch.optim.AdamW(
@@ -330,6 +373,16 @@ def main(cfg_path: str):
     step = start_step
     t0 = time.time()
     data_iter = iter(loader)
+    disc_iter = iter(disc_loader) if disc_loader is not None else None
+
+    def _next_from(loader_, iter_ref):
+        try:
+            return next(iter_ref[0])
+        except StopIteration:
+            iter_ref[0] = iter(loader_)
+            return next(iter_ref[0])
+
+    disc_iter_ref = [disc_iter] if disc_iter is not None else None
 
     while step < total_steps:
         try:
@@ -381,10 +434,29 @@ def main(cfg_path: str):
             x0_hat = estimate_x0_from_eps(x_t, eps_pred.detach().float(),
                                           train_sched, t)
 
+            # D real path: single-cohort mode uses the same batch (x0);
+            # cross-domain mode pulls a fresh batch from the D2 disc loader
+            # so D's "real" is authentic D2 T2FS.
+            if disc_iter_ref is not None:
+                disc_batch = _next_from(disc_loader, disc_iter_ref)
+                x0_real = disc_batch["image"].to(device, non_blocking=True)
+            else:
+                x0_real = x0
+
+            # Unconditional D (Phase 2): zero out label to prevent D from
+            # short-circuiting on D1↔D2 label-distribution differences and
+            # ignoring image style.
+            if d_unconditional:
+                lbl_d_real = torch.zeros_like(lbl_d)
+                lbl_d_fake = torch.zeros_like(lbl_d)
+            else:
+                lbl_d_real = lbl_d
+                lbl_d_fake = lbl_d
+
             if lam > 0.0:
                 # --- D step: real vs fake.detach() ---
-                d_real_logits = discriminator(x0, lbl_d)
-                d_fake_logits = discriminator(x0_hat.detach(), lbl_d)
+                d_real_logits = discriminator(x0_real, lbl_d_real)
+                d_fake_logits = discriminator(x0_hat.detach(), lbl_d_fake)
                 loss_d = discriminator_loss(d_real_logits, d_fake_logits)
                 optim_d.zero_grad(set_to_none=True)
                 loss_d.backward()
@@ -394,7 +466,7 @@ def main(cfg_path: str):
 
                 # --- G adversarial loss: D should call our fakes 'real' ---
                 # x0_hat WITHOUT detach so gradient flows back into G.
-                d_fake_logits_for_g = discriminator(x0_hat, lbl_d)
+                d_fake_logits_for_g = discriminator(x0_hat, lbl_d_fake)
                 loss_g_adv = generator_adv_loss(d_fake_logits_for_g)
 
         loss_g_total = loss_diff + lam * loss_g_adv

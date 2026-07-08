@@ -80,14 +80,18 @@ from scipy.ndimage import label as cc_label
 from scipy.ndimage import binary_closing, binary_fill_holes
 
 
-SUBJECT_DIR_RE = re.compile(r"^D2-\d{3}$")
+SUBJECT_DIR_RE = re.compile(r"^D[12]-\d{3}$")
 
 # --------------------------------------------------------------------------- #
 # Constants matching the existing RAovSeg recreation pipeline
 # --------------------------------------------------------------------------- #
 TARGET_SIZE = 512
 TARGET_SPACING = (0.35, 0.35, 6.0)  # (sx, sy, sz) in mm — matches RAovSeg recreation
-SEQUENCE = "T2FS"
+
+# Cohort-specific MRI sequence used as generator input / discriminator target.
+# D2 uses T2FS (fat-suppressed). D1 uses T2 (non-fat-sup); the adversarial
+# discriminator bridges the fat-suppression gap in Phase 2.
+COHORT_TO_SEQUENCE = {"D1": "T2", "D2": "T2FS"}
 
 # Threshold (on normalised [0,1] image) for the body silhouette mask.
 # Pelvic T2FS: air is near 0 after percentile-clip + minmax, body tissue is
@@ -107,6 +111,33 @@ N_CHANNELS = 6
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+def _detect_cohort(subj_id: str) -> str:
+    if subj_id.startswith("D1-"):
+        return "D1"
+    if subj_id.startswith("D2-"):
+        return "D2"
+    raise ValueError(f"unknown cohort for subject id {subj_id!r}")
+
+
+def _resolve_organ_path(raw_dir: Path, subj_id: str, organ: str,
+                        cohort: str) -> Optional[Path]:
+    """Resolve an organ mask path for a subject.
+
+    D2 layout: single file `{subj_id}_{organ}.nii.gz`.
+    D1 layout: per-rater files `{subj_id}_{organ}_r{1,2,3}.nii.gz`. Rater
+    coverage is inconsistent per subject, so we fall back r1 → r2 → r3 and
+    return the first that exists.
+    """
+    if cohort == "D2":
+        p = raw_dir / f"{subj_id}_{organ}.nii.gz"
+        return p if p.exists() else None
+    for r in ("r1", "r2", "r3"):
+        p = raw_dir / f"{subj_id}_{organ}_{r}.nii.gz"
+        if p.exists():
+            return p
+    return None
+
+
 def _read(path: Path, pixel_type=sitk.sitkFloat32) -> sitk.Image:
     return sitk.ReadImage(str(path), pixel_type)
 
@@ -377,21 +408,26 @@ def process_subject(
     save_per_class: bool = True,
 ) -> dict:
     """Process one subject. Returns a summary dict for the run log."""
-    img_path = raw_subject_dir / f"{subj_id}_{SEQUENCE}.nii.gz"
-    ut_path = raw_subject_dir / f"{subj_id}_ut.nii.gz"
-    ov_path = raw_subject_dir / f"{subj_id}_ov.nii.gz"
-    em_path = raw_subject_dir / f"{subj_id}_em.nii.gz"
+    cohort = _detect_cohort(subj_id)
+    sequence = COHORT_TO_SEQUENCE[cohort]
+
+    img_path = raw_subject_dir / f"{subj_id}_{sequence}.nii.gz"
+    ut_path = _resolve_organ_path(raw_subject_dir, subj_id, "ut", cohort)
+    ov_path = _resolve_organ_path(raw_subject_dir, subj_id, "ov", cohort)
+    em_path = _resolve_organ_path(raw_subject_dir, subj_id, "em", cohort)
 
     if not img_path.exists():
         return {"status": "skipped", "reason": f"missing {img_path.name}"}
-    if not ut_path.exists():
-        return {"status": "skipped", "reason": f"missing {ut_path.name}"}
-    if not ov_path.exists():
-        return {"status": "skipped", "reason": f"missing {ov_path.name}"}
-    if has_em_expected and not em_path.exists():
+    if ut_path is None:
+        return {"status": "skipped", "reason": "no uterus label"}
+    if ov_path is None:
+        # Decision B1: skip subjects with no ovary mask (ovary is the target
+        # organ; empty-ovary training samples would poison the SPADE signal).
+        return {"status": "skipped", "reason": "no ovary label (any rater)"}
+    if has_em_expected and (em_path is None or not em_path.exists()):
         # Loud failure — manifest lied or file was deleted
         raise FileNotFoundError(
-            f"{subj_id}: manifest expected has_em=1 but {em_path} is missing"
+            f"{subj_id}: manifest expected has_em=1 but em mask is missing"
         )
 
     # 1) Image: clip→normalise→resample to TARGET_SPACING
@@ -402,7 +438,7 @@ def process_subject(
     ov_resampled = _resample_label_to_image(_read(ov_path, sitk.sitkUInt8), image)
     em_resampled = (
         _resample_label_to_image(_read(em_path, sitk.sitkUInt8), image)
-        if em_path.exists() else None
+        if em_path is not None and em_path.exists() else None
     )
 
     ut_arr = (sitk.GetArrayFromImage(ut_resampled) > 0).astype(np.uint8)
@@ -453,22 +489,24 @@ def process_subject(
 
     # 5) Save outputs
     out_dir.mkdir(parents=True, exist_ok=True)
-    sitk.WriteImage(image, str(out_dir / f"image_{SEQUENCE}.nii.gz"))
+    sitk.WriteImage(image, str(out_dir / f"image_{sequence}.nii.gz"))
 
     # Combined 4D vector NIfTI for the dataloader.
     # SimpleITK stores leading dim as the vector component → on disk shape
     # becomes (Z, H, W, 5) when read back, which dataset.py handles.
     label_vec = sitk.GetImageFromArray(label_4d)
-    sitk.WriteImage(label_vec, str(out_dir / f"label_{SEQUENCE}.nii.gz"))
+    sitk.WriteImage(label_vec, str(out_dir / f"label_{sequence}.nii.gz"))
 
     if save_per_class:
-        _save_per_class_binaries(label_4d, image, out_dir, SEQUENCE)
+        _save_per_class_binaries(label_4d, image, out_dir, sequence)
 
     # 6) Summary stats
     n_ovary_slices = int(((label_4d[CH_OV_L] | label_4d[CH_OV_R]).any(axis=(1, 2))).sum())
     actual_spacing = tuple(round(float(s), 4) for s in image.GetSpacing())
     return {
         "status": "ok",
+        "cohort": cohort,
+        "sequence": sequence,
         "z": z_size,
         "spacing": actual_spacing,             # per-subject body-centered spacing
         "spacing_z_target": TARGET_SPACING[2],
@@ -483,7 +521,10 @@ def process_subject(
             "outside_body": int(label_4d[CH_BG].sum()),
         },
         "overlap_voxels_resolved": overlap_voxels,
-        "has_em_file": em_path.exists(),
+        "has_em_file": em_path is not None and em_path.exists(),
+        "ut_label_path": str(ut_path.name),
+        "ov_label_path": str(ov_path.name),
+        "em_label_path": str(em_path.name) if em_path is not None else None,
     }
 
 
@@ -498,8 +539,9 @@ def main():
                         help="Output root, e.g. preprocessed/D2")
     parser.add_argument("--split_file", required=True,
                         help="Generator split JSON (from build_generator_split.py)")
-    parser.add_argument("--manifest", required=True,
-                        help="RAovSeg manifest.csv, used for has_em validation")
+    parser.add_argument("--manifest", default=None,
+                        help="Optional D2 manifest.csv for has_em validation. "
+                             "D1 has no manifest — omit this flag for D1 runs.")
     parser.add_argument("--no_per_class", action="store_true",
                         help="Skip per-class binary NIfTIs (saves disk, kills viewer QA)")
     args = parser.parse_args()
@@ -515,8 +557,8 @@ def main():
 
     # Clean stale subject dirs from previous runs so out_root only contains
     # subjects that belong to the current split. Only directories matching
-    # the D2-XXX pattern are touched; preprocess_summary.json and any other
-    # sibling files are preserved.
+    # the D1-XXX or D2-XXX pattern are touched; preprocess_summary.json and
+    # any other sibling files are preserved.
     if out_root.exists():
         keep = set(subjects)
         stale_dirs = [
@@ -530,8 +572,11 @@ def main():
             for d in stale_dirs:
                 shutil.rmtree(d)
 
-    import pandas as pd
-    manifest = pd.read_csv(args.manifest).set_index("subject_id")
+    if args.manifest is not None:
+        import pandas as pd
+        manifest = pd.read_csv(args.manifest).set_index("subject_id")
+    else:
+        manifest = None
 
     summary = []
     for i, subj in enumerate(subjects, 1):
@@ -541,7 +586,10 @@ def main():
             summary.append({"subject": subj, "status": "missing"})
             continue
 
-        has_em_expected = bool(manifest.loc[subj, "has_em"]) if subj in manifest.index else False
+        if manifest is not None and subj in manifest.index:
+            has_em_expected = bool(manifest.loc[subj, "has_em"])
+        else:
+            has_em_expected = False
 
         try:
             result = process_subject(

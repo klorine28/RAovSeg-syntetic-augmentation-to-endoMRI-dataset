@@ -22,7 +22,7 @@ import numpy as np
 import SimpleITK as sitk
 
 # Add RAovSeg tools to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "RAovSeg"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "RAovSeg"))
 from RAovSeg_tools import ImgResample, ImgNorm, preprocess_
 
 # --- Config ---
@@ -62,14 +62,22 @@ def _out_size_for(image: "sitk.Image") -> tuple[int, int, int]:
     return (OUT_XY, OUT_XY, native_z)
 
 
-def preprocess_image(img_path: Path) -> np.ndarray:
-    """Load, resample (in-plane only), normalize, and enhance a single MRI volume."""
+def preprocess_image(img_path: Path, skip_enhancement: bool = False) -> np.ndarray:
+    """Load, resample (in-plane only), normalize, and enhance a single MRI volume.
+
+    If `skip_enhancement` is True, returns after the percentile-clip + minmax
+    step, WITHOUT the RAovSeg custom ovary-intensity enhancement (o1=0.22,
+    o2=0.30 windowing). Used by Option C of the augmentation experiments
+    to test whether the enhancement step is what's hurting synth utility.
+    """
     img = sitk.ReadImage(str(img_path), sitk.sitkFloat64)
     img = ImgResample(img, out_spacing=OUT_SPACING, out_size=_out_size_for(img),
                       is_label=False, pad_value=0)
     img_array = sitk.GetArrayFromImage(img)
     img_array = ImgNorm(img_array, norm_type="percentile_clip",
                         percentile_low=PERCENTILE_LOW, percentile_high=PERCENTILE_HIGH)
+    if skip_enhancement:
+        return img_array.astype(np.float32)
     img_enhanced = preprocess_(img_array, o1=O1, o2=O2)
     return img_enhanced
 
@@ -91,8 +99,14 @@ def find_best_sequence(subject_dir: Path, subject_id: str) -> Path | None:
     return None
 
 
-def process_subject(subject_dir: Path, output_dir: Path, subject_id: str):
-    """Process a single subject: image + ovary label."""
+def process_subject(subject_dir: Path, output_dir: Path, subject_id: str,
+                    skip_enhancement: bool = False):
+    """Process a single subject: image + ovary label.
+
+    `skip_enhancement` — see preprocess_image docstring. Used by Option C
+    of the augmentation experiments to skip the o1/o2 enhancement for
+    synthetic subjects (D2-9XX) while keeping it for real ones.
+    """
     img_path = find_best_sequence(subject_dir, subject_id)
     if img_path is None:
         print(f"  SKIP {subject_id}: no MRI sequence found")
@@ -102,8 +116,9 @@ def process_subject(subject_dir: Path, output_dir: Path, subject_id: str):
     has_label = label_path.exists()
 
     # Process image
-    print(f"  Image: {img_path.name}")
-    img_enhanced = preprocess_image(img_path)
+    print(f"  Image: {img_path.name}"
+          + ("  (enhancement SKIPPED)" if skip_enhancement else ""))
+    img_enhanced = preprocess_image(img_path, skip_enhancement=skip_enhancement)
 
     # Save
     subj_out = output_dir / subject_id
@@ -161,12 +176,18 @@ def scan_and_classify(data_dir: Path) -> list[dict]:
     The paper publishes counts (30+8=38) but no canonical subject-ID list, so we
     deterministically split with SPLIT_SEED. Subjects with cy/em are tagged
     `excluded`; subjects missing T2FS or ov are tagged `skip`.
+
+    Returns rows with an added "source_dir" field so callers (specifically
+    main(), after scanning an --extra-train-dir for synthetic subjects) know
+    which directory each subject lives in.
     """
     rows = []
     for subj_dir in sorted(data_dir.iterdir()):
         if not subj_dir.is_dir() or not SUBJECT_RE.match(subj_dir.name):
             continue
-        rows.append(inspect_subject(subj_dir, subj_dir.name))
+        row = inspect_subject(subj_dir, subj_dir.name)
+        row["source_dir"] = str(data_dir)
+        rows.append(row)
 
     # Deterministic 30/8 split among inclusion-passing subjects
     eligible = [r["subject_id"] for r in rows if r["split"] == "pending"]
@@ -188,12 +209,35 @@ def scan_and_classify(data_dir: Path) -> list[dict]:
     return rows
 
 
+def scan_extra_train_dir(extra_dir: Path) -> list[dict]:
+    """Scan an additional directory for synthetic subjects and force them into
+    the train_val split. Used for augmentation experiments.
+
+    Same inclusion rules as the main path (must have a sequence file + ov label,
+    no cy/em). But these subjects bypass the 30/8 shuffle — they all go into
+    train_val so the 8 sacred D2 test subjects from the main dir are preserved.
+    """
+    rows = []
+    for subj_dir in sorted(extra_dir.iterdir()):
+        if not subj_dir.is_dir() or not SUBJECT_RE.match(subj_dir.name):
+            continue
+        row = inspect_subject(subj_dir, subj_dir.name)
+        # Force the split: if the subject passes inclusion, it joins train_val.
+        if row["split"] == "pending":
+            row.update(split="train_val", included=1, reason="extra-train-dir (synthetic)")
+        row["source_dir"] = str(extra_dir)
+        rows.append(row)
+    return rows
+
+
 def write_manifest(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = ["subject_id", "sequence", "has_ov", "has_cy", "has_em",
               "split", "included", "reason"]
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
+        # extrasaction="ignore" so the per-row source_dir field
+        # (added when --extra-train-dir is used) doesn't crash DictWriter
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -211,9 +255,19 @@ def print_summary(rows: list[dict]) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Preprocess UT-EndoMRI for RAovSeg pipeline")
     parser.add_argument("--data-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "UT-EndoMRI" / "D2_TCPW")
+                        default=Path(__file__).resolve().parents[2] / "UT-EndoMRI" / "D2_TCPW")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "processed")
+                        default=Path(__file__).resolve().parents[2] / "data" / "processed")
+    parser.add_argument("--extra-train-dir", type=Path, default=None,
+                        help="Optional second data dir whose subjects (matching D2-XXX naming) "
+                             "are forced into the train_val split — used for synthetic data "
+                             "augmentation experiments. Real test split (8 sacred subjects) is "
+                             "preserved unchanged.")
+    parser.add_argument("--skip-enhancement-for-prefix", default=None,
+                        help="Option C: skip the o1/o2 ovary-intensity enhancement step for "
+                             "subjects whose ID starts with this prefix (e.g. 'D2-9' for synthetic "
+                             "subjects). Real subjects still get enhancement. Used to test whether "
+                             "the enhancement step is what's hurting synth utility.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Scan and write manifest only; skip preprocessing")
     args = parser.parse_args()
@@ -231,6 +285,22 @@ def main():
                 shutil.rmtree(target)
 
     rows = scan_and_classify(data_dir)
+    if args.extra_train_dir is not None:
+        if not args.extra_train_dir.exists():
+            raise FileNotFoundError(f"--extra-train-dir not found: {args.extra_train_dir}")
+        extra_rows = scan_extra_train_dir(args.extra_train_dir)
+        # Sanity: extra subject IDs must not collide with main subject IDs
+        main_ids = {r["subject_id"] for r in rows}
+        for r in extra_rows:
+            if r["subject_id"] in main_ids:
+                raise ValueError(
+                    f"--extra-train-dir subject id {r['subject_id']} collides with the main "
+                    f"--data-dir. Synthetic subjects should use D2-9XX naming (or another "
+                    f"range disjoint from real subjects)."
+                )
+        print(f"Adding {sum(1 for r in extra_rows if r['included'])} subjects from "
+              f"--extra-train-dir into train_val (out of {len(extra_rows)} scanned)")
+        rows.extend(extra_rows)
     manifest_path = output_dir / "manifest.csv"
     write_manifest(rows, manifest_path)
     print(f"Wrote manifest: {manifest_path} ({len(rows)} subjects scanned)")
@@ -240,13 +310,18 @@ def main():
         print("\nDry run — skipping preprocessing.")
         return
 
+    skip_prefix = args.skip_enhancement_for_prefix
+    if skip_prefix:
+        print(f"[preprocess] Option C: skipping enhancement for subjects with prefix '{skip_prefix}'")
     for r in rows:
         if not r["included"]:
             continue
         sid = r["subject_id"]
         split = r["split"]
-        print(f"\nProcessing {sid} [{split}] (sequence: {r['sequence']}):")
-        process_subject(data_dir / sid, output_dir / split, sid)
+        src_dir = Path(r.get("source_dir", str(data_dir)))
+        skip_enh = bool(skip_prefix and sid.startswith(skip_prefix))
+        print(f"\nProcessing {sid} [{split}] from {src_dir} (sequence: {r['sequence']}):")
+        process_subject(src_dir / sid, output_dir / split, sid, skip_enhancement=skip_enh)
 
     print("\nDone.")
 

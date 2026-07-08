@@ -1,0 +1,1038 @@
+[
+  {
+    "subject": "D1-000",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 27,
+    "spacing": [
+      0.5088,
+      0.5088,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 23901,
+      "ov_L": 12,
+      "ov_R": 34538,
+      "em": 10652,
+      "body_other": 4781639,
+      "outside_body": 2227146
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": true,
+    "ut_label_path": "D1-000_ut_r1.nii.gz",
+    "ov_label_path": "D1-000_ov_r1.nii.gz",
+    "em_label_path": "D1-000_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-001",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.4658,
+      0.4658,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 162397,
+      "ov_L": 0,
+      "ov_R": 7339,
+      "em": 23286,
+      "body_other": 7084938,
+      "outside_body": 1372792
+    },
+    "overlap_voxels_resolved": 414,
+    "has_em_file": true,
+    "ut_label_path": "D1-001_ut_r1.nii.gz",
+    "ov_label_path": "D1-001_ov_r1.nii.gz",
+    "em_label_path": "D1-001_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-002",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 48,
+    "spacing": [
+      0.7666,
+      0.7666,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 69042,
+      "ov_L": 485,
+      "ov_R": 907,
+      "em": 0,
+      "body_other": 5947465,
+      "outside_body": 6565013
+    },
+    "overlap_voxels_resolved": 3,
+    "has_em_file": false,
+    "ut_label_path": "D1-002_ut_r1.nii.gz",
+    "ov_label_path": "D1-002_ov_r1.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-003",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 42,
+    "spacing": [
+      0.5088,
+      0.5088,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 100773,
+      "ov_L": 554,
+      "ov_R": 3334,
+      "em": 8544,
+      "body_other": 7714166,
+      "outside_body": 3182677
+    },
+    "overlap_voxels_resolved": 5197,
+    "has_em_file": true,
+    "ut_label_path": "D1-003_ut_r1.nii.gz",
+    "ov_label_path": "D1-003_ov_r1.nii.gz",
+    "em_label_path": "D1-003_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-004",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 38,
+    "spacing": [
+      0.5068,
+      0.5068,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 7,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 420853,
+      "ov_L": 417,
+      "ov_R": 11295,
+      "em": 2869,
+      "body_other": 7962347,
+      "outside_body": 1563691
+    },
+    "overlap_voxels_resolved": 2425,
+    "has_em_file": true,
+    "ut_label_path": "D1-004_ut_r1.nii.gz",
+    "ov_label_path": "D1-004_ov_r1.nii.gz",
+    "em_label_path": "D1-004_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-006",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 59,
+    "spacing": [
+      0.7666,
+      0.7666,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 45798,
+      "ov_L": 803,
+      "ov_R": 560,
+      "em": 0,
+      "body_other": 9049412,
+      "outside_body": 6369923
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-006_ut_r1.nii.gz",
+    "ov_label_path": "D1-006_ov_r1.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-007",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 45,
+    "spacing": [
+      0.7236,
+      0.7236,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 65667,
+      "ov_L": 2878,
+      "ov_R": 105,
+      "em": 423680,
+      "body_other": 6606726,
+      "outside_body": 4697424
+    },
+    "overlap_voxels_resolved": 273,
+    "has_em_file": true,
+    "ut_label_path": "D1-007_ut_r3.nii.gz",
+    "ov_label_path": "D1-007_ov_r1.nii.gz",
+    "em_label_path": "D1-007_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-008",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 42,
+    "spacing": [
+      0.8096,
+      0.8096,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 2,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 30606,
+      "ov_L": 0,
+      "ov_R": 386,
+      "em": 49832,
+      "body_other": 4426919,
+      "outside_body": 6502305
+    },
+    "overlap_voxels_resolved": 228,
+    "has_em_file": true,
+    "ut_label_path": "D1-008_ut_r1.nii.gz",
+    "ov_label_path": "D1-008_ov_r2.nii.gz",
+    "em_label_path": "D1-008_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-009",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 45,
+    "spacing": [
+      0.6514,
+      0.6514,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 6,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 71107,
+      "ov_L": 2757,
+      "ov_R": 0,
+      "em": 68399,
+      "body_other": 4550727,
+      "outside_body": 7103490
+    },
+    "overlap_voxels_resolved": 1309,
+    "has_em_file": true,
+    "ut_label_path": "D1-009_ut_r1.nii.gz",
+    "ov_label_path": "D1-009_ov_r2.nii.gz",
+    "em_label_path": "D1-009_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-010",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 41,
+    "spacing": [
+      0.6807,
+      0.6807,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 11,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 118897,
+      "ov_L": 1695,
+      "ov_R": 6158,
+      "em": 11026,
+      "body_other": 4873092,
+      "outside_body": 5737036
+    },
+    "overlap_voxels_resolved": 10267,
+    "has_em_file": true,
+    "ut_label_path": "D1-010_ut_r1.nii.gz",
+    "ov_label_path": "D1-010_ov_r1.nii.gz",
+    "em_label_path": "D1-010_em_r1.nii.gz"
+  },
+  {
+    "subject": "D1-012",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 38,
+    "spacing": [
+      0.5303,
+      0.5303,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 35538,
+      "ov_L": 1501,
+      "ov_R": 0,
+      "em": 0,
+      "body_other": 6791487,
+      "outside_body": 3132946
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-012_ut_r3.nii.gz",
+    "ov_label_path": "D1-012_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-013",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 46,
+    "spacing": [
+      0.7021,
+      0.7021,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 7913,
+      "ov_L": 995,
+      "ov_R": 763,
+      "em": 0,
+      "body_other": 4824685,
+      "outside_body": 7224268
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-013_ut_r3.nii.gz",
+    "ov_label_path": "D1-013_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-015",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 39,
+    "spacing": [
+      0.665,
+      0.665,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 25594,
+      "ov_L": 1764,
+      "ov_R": 0,
+      "em": 53002,
+      "body_other": 6382212,
+      "outside_body": 3761044
+    },
+    "overlap_voxels_resolved": 1321,
+    "has_em_file": true,
+    "ut_label_path": "D1-015_ut_r3.nii.gz",
+    "ov_label_path": "D1-015_ov_r3.nii.gz",
+    "em_label_path": "D1-015_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-016",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 46,
+    "spacing": [
+      0.7266,
+      0.7266,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 90127,
+      "ov_L": 739,
+      "ov_R": 0,
+      "em": 1903,
+      "body_other": 4953576,
+      "outside_body": 7012279
+    },
+    "overlap_voxels_resolved": 127,
+    "has_em_file": true,
+    "ut_label_path": "D1-016_ut_r3.nii.gz",
+    "ov_label_path": "D1-016_ov_r3.nii.gz",
+    "em_label_path": "D1-016_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-017",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 43,
+    "spacing": [
+      0.4658,
+      0.4658,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 9,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 721845,
+      "ov_L": 26647,
+      "ov_R": 1351,
+      "em": 60446,
+      "body_other": 8558478,
+      "outside_body": 1903425
+    },
+    "overlap_voxels_resolved": 1313,
+    "has_em_file": true,
+    "ut_label_path": "D1-017_ut_r2.nii.gz",
+    "ov_label_path": "D1-017_ov_r2.nii.gz",
+    "em_label_path": "D1-017_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-018",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.5088,
+      0.5088,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 54656,
+      "ov_L": 168,
+      "ov_R": 4958,
+      "em": 3140,
+      "body_other": 6092265,
+      "outside_body": 3544141
+    },
+    "overlap_voxels_resolved": 2727,
+    "has_em_file": true,
+    "ut_label_path": "D1-018_ut_r3.nii.gz",
+    "ov_label_path": "D1-018_ov_r2.nii.gz",
+    "em_label_path": "D1-018_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-020",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6455,
+      0.6455,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 7,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 32470,
+      "ov_L": 1956,
+      "ov_R": 2996,
+      "em": 340,
+      "body_other": 4900280,
+      "outside_body": 4761286
+    },
+    "overlap_voxels_resolved": 224,
+    "has_em_file": true,
+    "ut_label_path": "D1-020_ut_r2.nii.gz",
+    "ov_label_path": "D1-020_ov_r2.nii.gz",
+    "em_label_path": "D1-020_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-021",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 35,
+    "spacing": [
+      0.5947,
+      0.5947,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 9,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 19440,
+      "ov_L": 3570,
+      "ov_R": 5257,
+      "em": 29237,
+      "body_other": 4732892,
+      "outside_body": 4384644
+    },
+    "overlap_voxels_resolved": 25885,
+    "has_em_file": true,
+    "ut_label_path": "D1-021_ut_r3.nii.gz",
+    "ov_label_path": "D1-021_ov_r3.nii.gz",
+    "em_label_path": "D1-021_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-023",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 38,
+    "spacing": [
+      0.5088,
+      0.5088,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 106953,
+      "ov_L": 3623,
+      "ov_R": 6372,
+      "em": 4999,
+      "body_other": 6572236,
+      "outside_body": 3267289
+    },
+    "overlap_voxels_resolved": 387,
+    "has_em_file": true,
+    "ut_label_path": "D1-023_ut_r2.nii.gz",
+    "ov_label_path": "D1-023_ov_r2.nii.gz",
+    "em_label_path": "D1-023_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-024",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.4658,
+      0.4658,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 94187,
+      "ov_L": 6422,
+      "ov_R": 0,
+      "em": 63513,
+      "body_other": 5744840,
+      "outside_body": 2741790
+    },
+    "overlap_voxels_resolved": 471,
+    "has_em_file": true,
+    "ut_label_path": "D1-024_ut_r2.nii.gz",
+    "ov_label_path": "D1-024_ov_r3.nii.gz",
+    "em_label_path": "D1-024_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-025",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6836,
+      0.6836,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 7,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 79637,
+      "ov_L": 1149,
+      "ov_R": 7655,
+      "em": 84200,
+      "body_other": 5235716,
+      "outside_body": 4290971
+    },
+    "overlap_voxels_resolved": 1930,
+    "has_em_file": true,
+    "ut_label_path": "D1-025_ut_r2.nii.gz",
+    "ov_label_path": "D1-025_ov_r2.nii.gz",
+    "em_label_path": "D1-025_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-026",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.6377,
+      0.6377,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 72468,
+      "ov_L": 746,
+      "ov_R": 2491,
+      "em": 33382,
+      "body_other": 4787238,
+      "outside_body": 3754427
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": true,
+    "ut_label_path": "D1-026_ut_r2.nii.gz",
+    "ov_label_path": "D1-026_ov_r3.nii.gz",
+    "em_label_path": "D1-026_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-027",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 38,
+    "spacing": [
+      0.7451,
+      0.7451,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 10,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 8502,
+      "ov_L": 6160,
+      "ov_R": 2524,
+      "em": 0,
+      "body_other": 5941035,
+      "outside_body": 4003251
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-027_ut_r2.nii.gz",
+    "ov_label_path": "D1-027_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-028",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6699,
+      0.6699,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 2,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 40930,
+      "ov_L": 0,
+      "ov_R": 1599,
+      "em": 1472,
+      "body_other": 4609137,
+      "outside_body": 5046190
+    },
+    "overlap_voxels_resolved": 90,
+    "has_em_file": true,
+    "ut_label_path": "D1-028_ut_r2.nii.gz",
+    "ov_label_path": "D1-028_ov_r3.nii.gz",
+    "em_label_path": "D1-028_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-032",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.6377,
+      0.6377,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 29143,
+      "ov_L": 0,
+      "ov_R": 2682,
+      "em": 0,
+      "body_other": 4491762,
+      "outside_body": 4127165
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-032_ut_r2.nii.gz",
+    "ov_label_path": "D1-032_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-034",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 43,
+    "spacing": [
+      0.8506,
+      0.8506,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 27022,
+      "ov_L": 1659,
+      "ov_R": 0,
+      "em": 0,
+      "body_other": 5950248,
+      "outside_body": 5293263
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": false,
+    "ut_label_path": "D1-034_ut_r2.nii.gz",
+    "ov_label_path": "D1-034_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-036",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.5088,
+      0.5088,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 8,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 47819,
+      "ov_L": 8628,
+      "ov_R": 4344,
+      "em": 819,
+      "body_other": 6777420,
+      "outside_body": 1811722
+    },
+    "overlap_voxels_resolved": 1011,
+    "has_em_file": true,
+    "ut_label_path": "D1-036_ut_r2.nii.gz",
+    "ov_label_path": "D1-036_ov_r3.nii.gz",
+    "em_label_path": "D1-036_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-037",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.6377,
+      0.6377,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 16722,
+      "ov_L": 2010,
+      "ov_R": 2735,
+      "em": 1644,
+      "body_other": 5144857,
+      "outside_body": 3482784
+    },
+    "overlap_voxels_resolved": 1232,
+    "has_em_file": true,
+    "ut_label_path": "D1-037_ut_r2.nii.gz",
+    "ov_label_path": "D1-037_ov_r2.nii.gz",
+    "em_label_path": "D1-037_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-038",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 33,
+    "spacing": [
+      0.5303,
+      0.5303,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 13,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 70004,
+      "ov_L": 15456,
+      "ov_R": 3135,
+      "em": 13556,
+      "body_other": 5057025,
+      "outside_body": 3491576
+    },
+    "overlap_voxels_resolved": 10627,
+    "has_em_file": true,
+    "ut_label_path": "D1-038_ut_r2.nii.gz",
+    "ov_label_path": "D1-038_ov_r2.nii.gz",
+    "em_label_path": "D1-038_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-041",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 44,
+    "spacing": [
+      0.6592,
+      0.6592,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 6,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 345269,
+      "ov_L": 9195,
+      "ov_R": 7560,
+      "em": 2860,
+      "body_other": 6713904,
+      "outside_body": 4455548
+    },
+    "overlap_voxels_resolved": 3494,
+    "has_em_file": true,
+    "ut_label_path": "D1-041_ut_r2.nii.gz",
+    "ov_label_path": "D1-041_ov_r2.nii.gz",
+    "em_label_path": "D1-041_em_r2.nii.gz"
+  },
+  {
+    "subject": "D1-042",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 35,
+    "spacing": [
+      0.6592,
+      0.6592,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 4,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 90681,
+      "ov_L": 0,
+      "ov_R": 2782,
+      "em": 4858,
+      "body_other": 6978367,
+      "outside_body": 2098352
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": true,
+    "ut_label_path": "D1-042_ut_r3.nii.gz",
+    "ov_label_path": "D1-042_ov_r3.nii.gz",
+    "em_label_path": "D1-042_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-043",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 32,
+    "spacing": [
+      0.7441,
+      0.7441,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 3,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 56489,
+      "ov_L": 1740,
+      "ov_R": 0,
+      "em": 9832,
+      "body_other": 2924449,
+      "outside_body": 5396098
+    },
+    "overlap_voxels_resolved": 277,
+    "has_em_file": true,
+    "ut_label_path": "D1-043_ut_r3.nii.gz",
+    "ov_label_path": "D1-043_ov_r3.nii.gz",
+    "em_label_path": "D1-043_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-044",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 34,
+    "spacing": [
+      0.7012,
+      0.7012,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 6,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 99766,
+      "ov_L": 2154,
+      "ov_R": 1178,
+      "em": 1035,
+      "body_other": 3875111,
+      "outside_body": 4933652
+    },
+    "overlap_voxels_resolved": 1010,
+    "has_em_file": true,
+    "ut_label_path": "D1-044_ut_r3.nii.gz",
+    "ov_label_path": "D1-044_ov_r3.nii.gz",
+    "em_label_path": "D1-044_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-045",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 42,
+    "spacing": [
+      0.7236,
+      0.7236,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 6,
+    "lr_decision": "midline_fallback",
+    "n_voxels": {
+      "uterus": 198079,
+      "ov_L": 2344,
+      "ov_R": 0,
+      "em": 16937,
+      "body_other": 4946505,
+      "outside_body": 5846183
+    },
+    "overlap_voxels_resolved": 0,
+    "has_em_file": true,
+    "ut_label_path": "D1-045_ut_r3.nii.gz",
+    "ov_label_path": "D1-045_ov_r3.nii.gz",
+    "em_label_path": "D1-045_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-046",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6592,
+      0.6592,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 5,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 22026,
+      "ov_L": 2963,
+      "ov_R": 2698,
+      "em": 0,
+      "body_other": 6398261,
+      "outside_body": 3273380
+    },
+    "overlap_voxels_resolved": 139,
+    "has_em_file": false,
+    "ut_label_path": "D1-046_ut_r3.nii.gz",
+    "ov_label_path": "D1-046_ov_r3.nii.gz",
+    "em_label_path": null
+  },
+  {
+    "subject": "D1-047",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6592,
+      0.6592,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 10,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 30827,
+      "ov_L": 6784,
+      "ov_R": 9000,
+      "em": 35105,
+      "body_other": 4329368,
+      "outside_body": 5288244
+    },
+    "overlap_voxels_resolved": 33390,
+    "has_em_file": true,
+    "ut_label_path": "D1-047_ut_r3.nii.gz",
+    "ov_label_path": "D1-047_ov_r3.nii.gz",
+    "em_label_path": "D1-047_em_r3.nii.gz"
+  },
+  {
+    "subject": "D1-048",
+    "status": "ok",
+    "cohort": "D1",
+    "sequence": "T2",
+    "z": 37,
+    "spacing": [
+      0.6592,
+      0.6592,
+      6.0
+    ],
+    "spacing_z_target": 6.0,
+    "n_ovary_slices": 10,
+    "lr_decision": "cc_2",
+    "n_voxels": {
+      "uterus": 78376,
+      "ov_L": 2636,
+      "ov_R": 3666,
+      "em": 1892,
+      "body_other": 6257834,
+      "outside_body": 3354924
+    },
+    "overlap_voxels_resolved": 1998,
+    "has_em_file": true,
+    "ut_label_path": "D1-048_ut_r3.nii.gz",
+    "ov_label_path": "D1-048_ov_r3.nii.gz",
+    "em_label_path": "D1-048_em_r3.nii.gz"
+  }
+]

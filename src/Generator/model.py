@@ -71,6 +71,21 @@ def build_unet(model_cfg: dict) -> DiffusionModelUNet:
     )
 
 
+def resolve_gen_data_cfg(cfg: dict) -> dict:
+    """Return the cohort-config that defines the *generator's* data.
+
+    Two schemas supported:
+      Phase 1: `cfg['data']` is the single-cohort dict directly.
+      Phase 2: `cfg['data']` contains sub-keys `generator` and `discriminator`;
+               the generator sub-cfg is what drives model construction and
+               inference-time SPADE conditioning.
+    """
+    dcfg = cfg["data"]
+    if "generator" in dcfg and "discriminator" in dcfg:
+        return dcfg["generator"]
+    return dcfg
+
+
 def build_model_from_cfg(cfg: dict) -> "_BaseConditionedDDPM":
     """Dispatch on cfg['model']['type'] (default 'concat' for 1a).
 
@@ -80,7 +95,7 @@ def build_model_from_cfg(cfg: dict) -> "_BaseConditionedDDPM":
     if model_type == "concat":
         return ConcatConditionedDDPM(build_unet(cfg["model"]))
     if model_type == "spade":
-        num_label_channels = cfg["data"]["num_label_channels"]
+        num_label_channels = resolve_gen_data_cfg(cfg)["num_label_channels"]
         return SPADEConditionedDDPM(build_unet_spade(cfg["model"], num_label_channels))
     raise ValueError(
         f"Unknown model.type={model_type!r}; supported: 'concat' (1a), 'spade' (1b)"

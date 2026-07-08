@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from evaluate import load_resclass, load_attuseg, DEVICE
 from train_resclass import split_subjects as split_subjects_resclass
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "RAovSeg"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "RAovSeg"))
 from RAovSeg_tools import postprocess_, dsc_cal_np
 
 
@@ -87,11 +87,11 @@ def evaluate_at_threshold(subjects_dir, subject_ids, resclass, attuseg,
 def main():
     parser = argparse.ArgumentParser(description="ResClass threshold sweep on validation set")
     parser.add_argument("--processed-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "processed")
+                        default=Path(__file__).resolve().parents[2] / "data" / "processed")
     parser.add_argument("--models-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "models")
+                        default=Path(__file__).resolve().parents[2] / "models")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "predictions")
+                        default=Path(__file__).resolve().parents[2] / "data" / "predictions")
     parser.add_argument("--closing-iters", type=int, default=10,
                         help="Postprocessing closing iterations (kept fixed across sweep)")
     parser.add_argument("--grid", type=float, nargs="+", default=THRESHOLD_GRID,

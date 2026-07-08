@@ -22,7 +22,7 @@ from monai.networks.nets import AttentionUnet
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from train_resclass import TwoBlockResNet
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "RAovSeg"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "RAovSeg"))
 from RAovSeg_tools import postprocess_, dsc_cal_np
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -87,11 +87,11 @@ def predict_subject(image: np.ndarray, label: np.ndarray,
 def main():
     parser = argparse.ArgumentParser(description="Evaluate RAovSeg pipeline on test set")
     parser.add_argument("--test-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "processed" / "test")
+                        default=Path(__file__).resolve().parents[2] / "data" / "processed" / "test")
     parser.add_argument("--models-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "models")
+                        default=Path(__file__).resolve().parents[2] / "models")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path(__file__).resolve().parent.parent / "data" / "predictions")
+                        default=Path(__file__).resolve().parents[2] / "data" / "predictions")
     parser.add_argument("--resclass-threshold", type=float, default=RESCLASS_THRESHOLD,
                         help="ResClass binary threshold (paper unspecified; tuned on val)")
     parser.add_argument("--closing-iterations", type=int, default=CLOSING_ITERATIONS,

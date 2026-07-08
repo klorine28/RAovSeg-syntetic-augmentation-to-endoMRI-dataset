@@ -29,10 +29,12 @@
 | Issue | Status | Impact |
 |---|---|---|
 | **Outside-body hallucinations** | Diagnosed (preprocessing root cause); not yet fixed | Affects radiologist credibility + quality metrics; minor impact on RAovSeg DSC |
-| **Exp 4 — RAovSeg downstream titration** | Not started | THE measurement that says whether any of this helped the project goal |
+| **Exp 4 — RAovSeg downstream titration** | **DONE (Phase 1 exhausted)** | v3 SPADE @ n=8: **DSC 0.178 ± 0.054** vs baseline 0.290. See RAOVSEG_AUGMENTATION_EXPERIMENT.md §8g. |
 | **N=4 sample limit on Cat-1 metrics** | Known limitation | CLR/OSI absolute values noisy; relative ordering robust |
 | **N=256 FID noise floor (~±30)** | Known limitation | Cross-variant FID differences <30 points are within noise |
-| **Phase 2 cross-domain (D1→D2)** | Not started | Optional; only worth doing if Phase-1 results don't satisfy the paper |
+| **Phase 2 cross-domain (D1→D2)** | **DONE (catastrophic collapse)** | exp2 DSC = 0.020 ± 0.010 (n=3), −93% vs baseline. Reinforces the negative-result story: bad synth is worse than no synth. See RAOVSEG_AUGMENTATION_EXPERIMENT.md §8h. |
+| **exp2_lam05 (Track 2 tuning)** | In progress | Diagnostic, not rescue. Unlikely to reverse the −93% gap. |
+| **Paper draft** | Underway | Outline in PAPER_OUTLINE.md; §7 numbers landed; focus shifts to writing. |
 
 ---
 
