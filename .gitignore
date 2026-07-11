@@ -43,6 +43,9 @@ exp1c_concat_samples/
 exp2_samples/
 exp2_lam05_samples/
 exp2_lam50_samples/
+exp2_samples_volumes/
+exp2_lam05_samples_volumes/
+exp2_lam50_samples_volumes/
 *.npy
 *.pt
 *.ckpt

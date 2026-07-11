@@ -1,0 +1,3 @@
+Cohort,Site,Sequence,Raw subjects,Role,Fat suppression
+D2_TCPW,TCPW,T2FS,~73,Generator + downstream (primary),Yes (dark fat)
+D1_MHS,Memorial Hermann,T2,51,Phase 2 generator training only,No (bright fat)

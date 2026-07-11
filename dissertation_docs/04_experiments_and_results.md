@@ -3,8 +3,8 @@
 > **Target: 3,500 words.** The full experimental narrative in the order
 > the story unfolded: Phase 1 generator ablation → Phase 1 downstream
 > augmentation (v1 → v2 → v3 → Options B and C) → n=8 variance study →
-> Phase 2 cross-domain. exp2_lam05 is a placeholder to be filled when
-> the SLURM job lands.
+> Phase 2 cross-domain. §4.6 covers the λ_peak sweep (lam05 and lam50)
+> layered on top of the pathC preprocessing fix.
 >
 > **Sub-targets (for pruning current draft):**
 > - §4.1 Experimental overview: 200 words
@@ -12,7 +12,7 @@
 > - §4.3 Phase 1 downstream (v1 → v3 + Options B/C): 1,400 words
 > - §4.4 n=8 variance study: 700 words
 > - §4.5 Phase 2 (exp2): 500 words
-> - §4.6 exp2_lam05 placeholder: 200 words (fill when data lands)
+> - §4.6 exp2 λ_peak sweep (lam05_pathC, lam50_pathC): 200 words
 >
 > Current draft (~707 lines) exceeds the target; use the section
 > targets to prune. Detailed source material remains available in
@@ -37,7 +37,9 @@
 | Phase 1 downstream | Option C (skip enhancement) | Diagnostic on RAovSeg's enhancement | Done, n=3 | −41% (0.170) |
 | Phase 1 downstream | Variance study (n=8 seeds) | Correct v3 SPADE mean | Done, n=8 | 0.178 ± 0.054 |
 | Phase 2 | exp2 — cross-domain (D1 gen + D2 disc) | Cross-domain style transfer | Done, n=3 | **−93% (DSC 0.020)** |
-| Phase 2 | exp2_lam05 — λ_peak = 0.05 | Diagnostic tuning of adversarial weight | **PENDING** | *TBD* |
+| Phase 2 | exp2_pathC — skip enhancement for D2-9 | Preprocessing rescue on exp2 | Done, n=3 | −48% (DSC 0.152) |
+| Phase 2 | exp2_lam05_pathC — λ = 0.05 + pathC | λ tuning stacked on pathC | Done, n=3 | −66% (DSC 0.098) |
+| Phase 2 | exp2_lam50_pathC — λ = 0.50 + pathC | λ tuning stacked on pathC | Done, n=3 | −63% (DSC 0.107) |
 
 ---
 
@@ -621,55 +623,65 @@ Detailed in Chapter 6. The three claims that emerge from exp2:
    extension actively harms. Together they map the design space where
    synth augmentation fails in this regime.
 
-## 4.6 exp2_lam05 — λ_peak = 0.05 diagnostic [target: 200 words, PENDING]
+## 4.6 exp2 λ_peak sweep — lam05_pathC and lam50_pathC [target: 200 words]
 
-**Status**: PENDING. SLURM job running as of the writing of the
-`../docs_archive/PAPER_OUTLINE.md` two weeks ago and the `../docs_archive/NEXT_STEPS.md` status snapshot.
-Local artefacts: `exp2_lam05_samples/`, `scripts/train_exp2_lam05.sh`,
-`scripts/assemble_synth_exp2_lam05.sh`, `scripts/run_raovseg_aug_exp2_
-lam05_seed{0,1,2}.sh`.
+Local artefacts: `exp2_lam05_samples/`, `exp2_lam05_samples_volumes/`,
+`exp2_samples_volumes/`, `scripts/train_exp2_lam05.sh`,
+`scripts/train_exp2_lam50.sh`, `scripts/assemble_synth_exp2_lam05.sh`,
+`scripts/assemble_synth_exp2_lam50.sh`, and the six
+`scripts/run_raovseg_aug_exp2_lam{05,50}_pathC_seed{0,1,2}.sh`.
 
 ### 4.6.1 Rationale
 
-exp2 failed with λ_peak = 0.01 → adversarial signal too weak. exp2_lam05
-tests λ_peak = 0.05 (5× exp2) — the same generator + D setup, higher
-adversarial pressure, everything else identical.
+exp2 collapsed at λ_peak = 0.01, and exp2_pathC (§4.7) recovered a
+usable −48% by fixing the enhancement-window mismatch. The remaining
+question was whether **λ_peak tuning stacks additively on top of pathC**
+— i.e. is the adversarial signal at λ = 0.01 too weak to matter even
+after preprocessing is corrected? Two variants were trained end-to-end
+and evaluated with the same pathC preprocessing: λ_peak = 0.05 (5× exp2)
+and λ_peak = 0.50 (50× exp2). Everything else identical to exp2_pathC.
 
-This is explicitly a **diagnostic**, not a rescue attempt. The question
-being tested: "did we abandon exp2 prematurely at λ = 0.01, or is the
-whole DDPM + adv cross-domain paradigm at n < 50 architecturally
-insufficient?" Not "will λ = 0.05 recover baseline DSC 0.290."
+### 4.6.2 DSC results (n = 3 seeds each)
 
-### 4.6.2 Expected outcome interpretation matrix
+| Seed | lam05_pathC (full) | lam50_pathC (full) |
+|---|---|---|
+| 0 | 0.1190 | 0.1142 |
+| 1 | 0.1436 | 0.1569 |
+| 2 | 0.0314 | 0.0493 |
+| **Mean** | **0.0980** | **0.1068** |
+| Std | 0.0590 | 0.0542 |
 
-Filled ahead of time so the doc just needs DSC pasted in when the job
-completes.
+vs exp2_pathC (0.152 ± 0.054): both variants land ~0.05 DSC below the
+pathC-only mean but within 1σ — no statistically significant difference
+at n = 3. vs baseline (0.290): −66% and −63% respectively. vs each
+other: within 0.02 of each other, well inside noise; a 10× change in
+λ_peak did not move the mean.
 
-| exp2_lam05 DSC (n=3 mean) | Interpretation |
-|---|---|
-| ≤ 0.02 | λ tuning does not rescue exp2. Failure is deeper than λ magnitude — consistent with claim that DDPM MSE fundamentally dominates unconditional adv at these scales. Paper conclusion unchanged. |
-| 0.02 – 0.05 | Marginal improvement over exp2 (0.020). Still −83% vs baseline. Paper conclusion unchanged: cross-domain DDPM + adv is architecturally insufficient. Reported as "even 5× λ does not close the gap." |
-| 0.05 – 0.15 | Diagnostically interesting — λ tuning does move exp2, but not to Phase 1 levels (~0.18). Reported as "future work: λ tuning is a lever but not by itself sufficient." |
-| 0.15 – 0.20 | Reaches Phase 1 SPADE augmentation ceiling. Reported as "λ tuning recovers Phase 1's ceiling but does not exceed it." Cross-domain is not additive at these scales. |
-| ≥ 0.20 | **Unexpected**. Would reverse Phase 2 negative conclusion. Trigger n=5 replication before reporting; revisit Chapter 6 framing. |
+### 4.6.3 What §4.6 tells the paper
 
-### 4.6.3 What to fill in when the job lands
+Three findings.
 
-- The `[Seed / DSC]` table below (replace `[TBD]`):
+1. **λ_peak is not the limiting factor.** A 10× multiplier (0.05 → 0.50)
+   did not move the downstream DSC. This retires the "we abandoned exp2
+   prematurely at λ = 0.01" hypothesis: even at λ = 0.50 the mean sits
+   ~0.05 below exp2_pathC's 0.152.
 
-| Seed | DSC (full) |
-|---|---|
-| 0 | [TBD] |
-| 1 | [TBD] |
-| 2 | [TBD] |
-| **Mean** | **[TBD]** |
-| Std | [TBD] |
+2. **λ tuning does not stack with pathC.** Both stacked variants are
+   marginally lower than pathC-alone. The preprocessing lever
+   (enhancement-window mismatch) explained essentially all of the
+   recoverable gap in Phase 2; adversarial-weight tuning contributes
+   nothing at the mean-effect level.
 
-- Sample-grid observation (still gray blob? emerging T2FS style?
-  ovaries visible?).
+3. **Seed 2 crashed in both variants** (0.031 and 0.049) — the ResClass
+   instability documented in §4.4 recurs in Phase 2. Cross-seed variance
+   dominates the difference between λ settings.
 
-- If DSC ∈ [0.05, 0.20], describe interpretive shift; otherwise leave
-  Chapter 6 claim 1 unchanged.
+Together the sweep places the interpretive result in the **0.05–0.15
+bucket** of §4.6.2's original planning matrix: *λ tuning is a lever
+but not by itself sufficient*. Chapter 6 claim on Phase 2 remains
+unchanged: cross-domain DDPM + adversarial translation at n = 30 real
+is architecturally insufficient, and λ_peak is not the missing
+ingredient.
 
 ## 4.7 exp2_pathC — diagnostic-driven preprocessing rescue
 
@@ -757,8 +769,8 @@ Best seed (seed 1) hit 0.2118 — above Phase 1 v3's n=8 mean of 0.178.
 | Phase 1 Opt C SPADE (no enh) | 3 | 0.170 ± 0.056 | −41% |
 | **Phase 2 exp2** (D1 gen + D2 disc, λ=0.01, naive) | 3 | **0.020 ± 0.010** | **−93%** ← diagnostic case study |
 | **Phase 2 exp2_pathC** (skip enh for D2-9) | 3 | **0.152 ± 0.054** | **−48%** ← Phase 2 headline |
-| Phase 2 exp2_lam05 (λ=0.05) | 3 | [TBD] | [TBD] |
-| Phase 2 exp2_lam50 (λ=0.5) | 3 | [TBD] | [TBD] |
+| Phase 2 exp2_lam05_pathC (λ=0.05 + pathC) | 3 | 0.098 ± 0.059 | −66% |
+| Phase 2 exp2_lam50_pathC (λ=0.50 + pathC) | 3 | 0.107 ± 0.054 | −63% |
 
 **The three headline numbers are:**
 - **0.178** (best Phase 1, in-domain synth) — the ceiling of preprocessing
@@ -770,9 +782,10 @@ Best seed (seed 1) hit 0.2118 — above Phase 1 v3's n=8 mean of 0.178.
   preprocessing mismatch destroys downstream utility.
 
 All three are meaningfully below the 0.290 real-only baseline. The
-pending λ tunings will either strengthen the "cross-domain matches
-in-domain" claim (if similar to pathC) or provide additional evidence
-that adversarial weight is not the limiting factor.
+λ_peak sweep (0.05 and 0.50, both applied on top of pathC) added
+additional evidence that adversarial weight is not the limiting factor:
+both stacked variants land ~0.05 below exp2_pathC's mean, within noise
+of each other and of pathC-alone.
 
 ## 4.9 Notes on reproducibility of these results
 

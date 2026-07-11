@@ -1,0 +1,11 @@
+Phase,Configuration,Conditioning,Ovary DSC,Δ vs baseline
+—,Real-only baseline,—,0.290,0%
+1,v1 (no fixes),concat,0.150,-48%
+1,v2 (3 fixes),concat,0.044,-85%
+1,v3 (+Path B),concat,0.053,-82%
+1,v1 (no fixes),SPADE,0.138,-52%
+1,v2 (3 fixes),SPADE,0.169,-42%
+1,"v3 (+Path B, n=8)",SPADE,0.178,-39%
+2,exp2 (λ=0.01),SPADE cross-domain,0.020,-93%
+2,exp2 Path C,SPADE cross-domain,0.152,-48%
+2,exp2_lam05 (λ=0.05),SPADE cross-domain,0.117,-60%

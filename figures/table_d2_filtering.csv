@@ -1,0 +1,7 @@
+Filter,Removed,Remaining
+Raw D2 subjects,—,~73
+Missing T2FS image,3,~70
+Missing uterus/ovary mask,~9,~61
+Sacred RAovSeg test set (held out),8,—
+Generator training pool,—,32
+RAovSeg train_val (excl. em/cyst),—,30 (+8 test)

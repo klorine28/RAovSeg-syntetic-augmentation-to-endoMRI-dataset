@@ -549,3 +549,54 @@ under-specifications, confirming our recreation is faithful.
 
 Any step above cross-references its dependencies. If a run fails,
 `logs/{jobname}_{jobid}.out` has the SLURM stdout for the failing job.
+
+## 7.11 Mechanism figures — ovary-voxel intensity table
+
+Companion table to the three mechanism figures
+(`figures/fig_mech_overlay.png`, `figures/fig_mech_body_hist.png`,
+`figures/fig_mech_ovary_hist.png`). Renders the ovary-voxel intensity
+distribution after RAovSeg's percentile-clip + minmax normalisation
+(no enhancement), for three real D2 test subjects and three synthetic
+subjects assembled with the Phase 1 v3 1c SPADE generator. RAovSeg's
+enhancement window is `[0.22, 0.30]`; the Path B rescaling target used
+at assembly time is `t = 0.26`.
+
+Rendered by
+`python -m src.RaovSeg_recreation.mechanism_figures --real-dir UT-EndoMRI/D2_TCPW --real-subjects D2-016 D2-017 D2-024 --synth-dir exp1c_spade_samples --synth-subjects D2-900 D2-901 D2-902 --real-label "Real D2" --synth-label "Synth (1c SPADE)" --out-dir figures`.
+Raw values are in `figures/mech_ovary_intensity_table.csv`.
+
+| Variant | n vox | mean | median | p10 | p90 | % in [0.22, 0.30] |
+|---|---:|---:|---:|---:|---:|---:|
+| **Real D2 (pooled)** | 37,505 | **0.499** | 0.462 | 0.269 | 0.802 | **10.1%** |
+| real / D2-016 | 16,035 | 0.480 | 0.446 | 0.281 | 0.735 | 11.1% |
+| real / D2-017 | 11,415 | 0.490 | 0.465 | 0.295 | 0.718 | 8.3% |
+| real / D2-024 | 10,055 | 0.541 | 0.503 | 0.209 | 1.000 | 10.5% |
+| **Synth 1c SPADE (pooled)** | 54,342 | **0.203** | 0.169 | 0.058 | 0.397 | **15.1%** |
+| synth / D2-900 | 5,179 | 0.207 | 0.186 | 0.102 | 0.345 | 20.7% |
+| synth / D2-901 | 15,884 | 0.195 | 0.161 | 0.077 | 0.363 | 14.5% |
+| synth / D2-902 | 33,279 | 0.206 | 0.169 | 0.049 | 0.415 | 14.5% |
+
+**Reading the table.** The enhancement window `[0.22, 0.30]` was designed
+around the intensity band a T2FS ovary occupies after RAovSeg's
+normalisation, and it is what triggers the segmenter's ovary-detection
+stage. Two facts stand out:
+
+1. **Real D2 ovaries mostly land *above* the window.** Pooled mean 0.499
+   with only 10.1% of voxels inside `[0.22, 0.30]`. This is a property of
+   the D2 cohort's intensity statistics after percentile-clip
+   normalisation, not of the synth, and it means even the real-only
+   RAovSeg baseline is operating with the enhancement stage under-firing.
+
+2. **Synth ovaries land *below* the window.** Pooled mean 0.203, with
+   15.1% in-window. The Path B rescale at assembly time targeted t = 0.26,
+   but the additive per-volume offset did not close the gap: after the
+   per-subject histogram-match into the raw real subject's intensity
+   range, the ovary rescale was fighting the global distribution shape
+   and lost.
+
+The two distributions bracket the enhancement window from opposite sides
+(see `fig_mech_ovary_hist.png`). This is the mechanism behind the
+Phase 1 downstream degradation: at no point in the pipeline does the
+labelled ovary tissue occupy the same intensity band as the real
+ovaries, so the augmentation trains the segmenter on a fundamentally
+different intensity prior than the one it will see at test time.
