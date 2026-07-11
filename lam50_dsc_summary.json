@@ -1,0 +1,17 @@
+{
+  "variant": "lam50",
+  "seeds": [
+    {
+      "seed": 0,
+      "status": "not_started"
+    },
+    {
+      "seed": 1,
+      "status": "not_started"
+    },
+    {
+      "seed": 2,
+      "status": "not_started"
+    }
+  ]
+}

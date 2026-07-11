@@ -1,204 +1,137 @@
-# 01 — Introduction
+# 1 — Introduction
 
-> Dissertation-ready master. Consolidates the motivation, problem framing,
-> thesis statement, and contributions. Source material: `../docs_archive/PAPER_OUTLINE.md`,
-> `../docs_archive/architecture_dataflow_v2.md`, `../docs_archive/synthetic_mri_generator_design.md`,
-> `../docs_archive/RAOVSEG_AUGMENTATION_EXPERIMENT.md`, memory files.
+> **Target: 1,000 words.** Motivation, problem, thesis, aims and
+> objectives, contributions, and report structure. Modelled after the
+> distinction-level Introduction chapter pattern in aca22mmm and
+> acu23ns.
 
 ---
 
-## 1.1 Clinical motivation
+## 1.1 Background and motivation [target: 300 words]
 
-Endometriosis is a chronic gynaecological condition in which endometrial-
-like tissue grows outside the uterus. Definitive diagnosis is invasive
-(laparoscopy), and non-invasive workup relies heavily on pelvic MRI. The
-imaging workup revolves around a small set of pelvic organs — the uterus,
-the ovaries (and any endometriomas they harbour), and their relationship to
-neighbouring structures. Among these targets, **automated ovary
-segmentation** is the natural quantitative anchor because ovary volume,
-morphology, and endometrioma involvement all feed downstream clinical
-decision-making (surgical planning, longitudinal monitoring, phenotyping
-for research cohorts).
+Endometriosis is a chronic gynaecological condition in which
+endometrial-like tissue grows outside the uterus, affecting an
+estimated 10% of reproductive-age women worldwide (Zondervan et al.,
+2020). Definitive diagnosis remains invasive (laparoscopy), and
+non-invasive workup relies heavily on pelvic magnetic resonance imaging
+(MRI). Within the imaging workup, **automated ovary segmentation** is
+the natural quantitative anchor: ovary volume, morphology, and
+endometrioma involvement inform surgical planning, longitudinal
+monitoring, and phenotyping for research cohorts.
 
-The clinical value of automation is high:
-1. Manual pelvic-organ contouring on 3D MRI is slow and expert-limited.
-2. Inter-rater agreement on ovary segmentation caps at DSC ≈ **0.48 ± 0.24**
-   (UT-EndoMRI human-vs-human DSC on the ovary target). This is the
-   effective *ceiling* any automated method can aspire to.
-3. State-of-the-art automated methods for endometriosis-focused pelvic MRI
-   sit well below that ceiling. Liang et al. (2025, *Scientific Data*)
-   published RAovSeg — a two-stage ResNet-slice-classifier + Attention U-Net
-   pipeline with a fixed intensity-enhancement preprocessing rule — and
-   reported a full-pipeline DSC of **0.290** on their D2 test set of 8
-   subjects. This is our real-only baseline throughout the dissertation.
+The clinical value of automation is substantial. Manual pelvic-organ
+contouring on 3D MRI is slow and expert-limited, and inter-rater
+agreement between expert radiologists on the ovary target caps at
+Dice similarity coefficient (DSC) 0.48 ± 0.24 on UT-EndoMRI (Liang et
+al., 2025). Any automated method can in principle approach this
+ceiling but not exceed it. State-of-the-art methods sit well below:
+Liang et al.'s RAovSeg pipeline, which this dissertation adopts as its
+downstream anchor, achieves DSC 0.290 on the 8-subject held-out D2
+test set. The gap between 0.290 and 0.48 defines a real headroom for
+methodological improvement.
 
-The gap between 0.290 and 0.48 is substantial (~66% headroom before the
-inter-rater ceiling), which motivates methods that could push automated
-DSC upward without requiring the further collection of hundreds of
-expert-annotated subjects.
+The natural approach to closing this gap in a data-starved clinical
+regime — 30 D2 training subjects — is **synthetic data augmentation**.
+If a generator can produce plausible labelled pelvic T2FS MRI slices,
+mixing its outputs into the RAovSeg training pool should in principle
+increase effective training-set size and improve downstream DSC. This
+recipe is well-explored in medical imaging: Med-DDPM (Dorjsembe et al.,
+2024), RoentGen (Chambon et al., 2022), and cross-domain Pix2Pix
+approaches (Zhu et al., 2017) all report positive downstream results
+in adjacent tasks. The empirical question this dissertation answers
+is whether the recipe generalises to the pelvic MRI at n = 30 regime,
+which sits below the ~100-subject threshold at which most published
+positive augmentation results cluster.
 
-## 1.2 The data-scarcity problem
+This project draws on data science techniques central to the MSc
+Data Science programme at Sheffield IJC — generative modelling,
+ablation-driven experimental design, statistical variance analysis,
+and downstream evaluation methodology.
 
-The dataset RAovSeg was developed against is UT-EndoMRI (Liang et al.
-2025), which consists of two site-institutional cohorts:
+## 1.2 Problem and thesis statement [target: 200 words]
 
-| Cohort | Site | Sequence | Subjects |
-|---|---|---|---|
-| D1_MHS | Memorial Hermann | T2 (bright fat, non-fat-suppressed) | 51 |
-| D2_TCPW | TCPW | T2FS (dark fat, fat-suppressed) | ~73 |
+The empirical question is straightforward: *can conditional-DDPM
+synthetic augmentation improve RAovSeg ovary DSC beyond the real-only
+baseline of 0.290 at n = 30 training subjects?* The answer, arrived at
+via a two-phase experimental study, is **no**.
 
-RAovSeg is trained/evaluated on D2_TCPW T2FS. Of the ~73 D2 subjects,
-strict inclusion criteria (present T2FS + present ovary label + absent
-cyst label + absent endometrioma label) yield **30 train-val subjects
-and 8 held-out test subjects** — the classical low-data medical imaging
-regime.
+The dissertation's thesis:
 
-At n = 30 training subjects the segmenter is chronically data-starved:
+> Naive synthetic augmentation via conditional DDPM does not improve
+> ovary segmentation in the low-data pelvic MRI regime, and can
+> actively harm downstream performance when the generator fails to
+> acquire the target domain's style. A systematic architectural
+> ablation (concat vs SPADE conditioning crossed with the presence
+> or absence of PatchGAN adversarial regularisation) and a
+> cross-domain extension (D1 T2 generator with D2 T2FS
+> discriminator) both fail to match the real-only baseline. The path
+> to a positive result is not more sampling or more preprocessing
+> tuning but a re-thinking of the generator's alignment with the
+> downstream consumer's preprocessing assumptions.
 
-- The 0.290 DSC is not simply "close to inter-rater 0.48"; it is far below,
-  and the residual gap is characteristic of small-cohort medical vision
-  tasks where diverse anatomical variation is underrepresented at training.
-- Per-subject variance dominates: on the RAovSeg augmentation runs, the
-  DSC standard deviation *within* a seed (across the 8 test subjects) is
-  ~0.24 while the std *across* training seeds is ~0.054 — the segmenter's
-  performance is fundamentally subject-tractability limited, not
-  optimisation-limited.
-- Two specific test subjects (**D2-005**, **D2-023**) are universal-failure
-  cases in the augmented pipeline: DSC = 0 across all 8 seeds of the
-  variance study. Whether they are also failures under the real-only
-  baseline is an open question that would sharpen the paper's per-subject
-  analysis; regardless, their existence caps the achievable mean DSC.
+Reaching this conclusion required a methodical experimental sequence
+that produced a set of contributions of independent interest,
+detailed in §1.4.
 
-## 1.3 The natural but risky answer: synthetic augmentation
+## 1.3 Aims and objectives [target: 200 words]
 
-Faced with data scarcity, the standard research reflex is: *synthesise
-more training data*. In our case, this means training a generator to
-produce plausible pelvic T2FS MRI slices conditioned on anatomy labels,
-then mixing generator outputs into the RAovSeg training pool.
+The overall aim is to determine whether conditional-DDPM synthetic
+augmentation can improve RAovSeg ovary DSC beyond the real-only
+baseline of 0.290, and to characterise the mechanisms that drive
+success or failure.
 
-The design idea is straightforward:
-1. Train a **conditional denoising diffusion probabilistic model (DDPM)**
-   that ingests a multi-channel anatomy label and produces the matching
-   T2FS image slice.
-2. Use it to generate synthetic (image, label) pairs.
-3. Add them to RAovSeg's 30-subject training pool.
-4. Measure DSC on the sacred 8-subject test set.
+The specific objectives are:
 
-This is a well-explored recipe in medical imaging: Med-DDPM, MONAI
-Generative examples, RoentGen, cross-domain Pix2Pix. Positive results are
-common in large-domain tasks (CT, chest X-ray) with training sets in the
-thousands. **Pelvic MRI at n=30 is an underexplored regime.** Whether
-the diffusion + adversarial paradigm actually delivers a downstream
-benefit at this data scale — or whether it fails, and if so how — is the
-empirical question this dissertation answers.
+1. **Reproduce the RAovSeg real-only baseline** (DSC 0.290) as a
+   verified anchor for downstream comparisons.
+2. **Design and train four conditional DDPM variants** in a clean 2×2
+   ablation (concat vs SPADE conditioning × ±PatchGAN adversarial
+   regularisation) on the D2 T2FS training pool.
+3. **Characterise generator quality** using standard distributional
+   metrics (FID, hist_KL, LPIPS-NN) and two novel per-channel
+   interpretability metrics (CLR and OSI).
+4. **Evaluate downstream utility** by mixing synth into RAovSeg's
+   training pool and reporting ovary DSC on the sacred 8-subject test
+   set, across preprocessing-fix versions v1 → v2 → v3.
+5. **Perform a variance study** at n = 8 seeds to test whether the
+   Phase 1 augmentation trajectory is statistically robust.
+6. **Extend to cross-domain Phase 2** (D1 T2 generator, D2 T2FS
+   discriminator) to test whether cross-cohort data diversity closes
+   the gap.
+7. **Formulate methodological recommendations** for the medical
+   augmentation literature at n < 50 real subjects.
 
-The answer, from an extensive two-phase study, is that it **does not
-help** and, in the cross-domain variant, actively **poisons the
-downstream training signal**. The methodological path taken to reach that
-conclusion — an architectural ablation, an iterative preprocessing
-alignment story, a variance re-analysis, and a cross-domain extension —
-produces a set of transferable lessons the field can build on.
-
-## 1.4 Thesis statement
-
-> **Naive synthetic augmentation via conditional DDPM does not improve
-> ovary segmentation in the low-data pelvic MRI regime, and can actively
-> harm downstream performance when the generator fails to acquire the
-> target domain's style. Systematic architectural ablation
-> (concat vs SPADE × ±PatchGAN) and cross-domain extension both fail to
-> match the real-only baseline. The path to a positive result is not
-> more sampling or more preprocessing tuning but a re-thinking of the
-> generator's alignment with the downstream consumer's preprocessing
-> assumptions.**
-
-## 1.5 Contributions
+## 1.4 Contributions [target: 150 words]
 
 The dissertation contributes:
 
-1. **A clean 2×2 generator ablation** — concat vs SPADE conditioning
-   crossed with ±PatchGAN adversarial regularisation — trained under
-   matched conditions on the same 32 D2 subjects. Each cell is fully
+1. **A clean 2×2 conditional-DDPM ablation** on pelvic T2FS MRI, fully
    characterised on FID, hist_KL, LPIPS-NN, and two novel per-channel
-   interpretability metrics (Counterfactual Localisation Ratio and Organ
-   Specificity Index). The ablation produces a clean **architectural map**
-   (localisation × realism) with no single winner across metrics.
+   interpretability metrics.
+2. **An empirical negative result on downstream augmentation** —
+   every tested configuration (all four Phase 1 variants plus
+   cross-domain Phase 2) reduces RAovSeg's DSC below the real-only
+   baseline.
+3. **The Counterfactual Localisation Ratio (CLR)** as an
+   interpretability metric that predicts downstream utility for
+   label-aware augmentation tasks where standard distributional
+   metrics do not.
+4. **The label-aware ovary intensity rescaling technique (Path B)** —
+   the single most impactful preprocessing fix uncovered by this
+   work.
+5. **A variance-study protocol (n ≥ 5 seeds)** that surfaces
+   per-subject failure modes obscured by standard n = 3 reporting in
+   the medical augmentation literature.
 
-2. **An empirical negative result on downstream augmentation** — every
-   tested configuration (all four Phase 1 variants + cross-domain Phase
-   2) reduces RAovSeg's DSC below the real-only baseline of 0.290. The
-   best Phase 1 configuration (v3 SPADE with three preprocessing
-   corrections + label-aware ovary intensity rescaling) plateaus at DSC
-   0.178 ± 0.054 at n=8 seeds — 38% below baseline. Cross-domain Phase 2
-   collapses to DSC 0.020 (−93%).
+## 1.5 Overview of the report [target: 100 words]
 
-3. **A diagnostic decomposition of why the augmentation fails** — a
-   sequence of preprocessing-alignment fixes (body silhouette masking,
-   histogram matching, resampling to source frame, label-aware ovary
-   rescaling) each partially closes the synth-vs-real distribution gap,
-   but the sum falls short of restoring baseline. The residual gap traces
-   back to the interaction between synth quality (per-organ localisation
-   in particular) and RAovSeg's intensity-enhancement rule at [0.22, 0.30]
-   — a hidden pipeline assumption that turns out to matter more than raw
-   image realism.
-
-4. **The "bad synth is worse than no synth" claim** — Phase 2's −93% DSC
-   is stable across seeds (std ~0.010, tighter than Phase 1's ~0.054)
-   and provides a much sharper practical warning than Phase 1's −38%:
-   at low real-data scales, mediocre synthetic augmentation is not just
-   wasted capacity; it can *corrupt* the downstream training signal.
-
-5. **A variance-study protocol for downstream augmentation experiments**
-   — the difference between n=3 and n=8 seeds turned out to be
-   substantive (v3 SPADE mean 0.218 → 0.178). The dissertation
-   documents the analytical shift the added seeds forced, and argues
-   that n≥5 should be treated as the minimum for downstream synthetic
-   augmentation claims at this data scale.
-
-## 1.6 Structure of the dissertation
-
-| Chapter | Content |
-|---|---|
-| **1. Introduction** (this doc) | Motivation, problem, thesis, contributions |
-| **2. Background** | DDPMs, SPADE, PatchGAN, medical image synthesis, cross-domain MRI translation, RAovSeg |
-| **3. Data and downstream pipeline** | UT-EndoMRI D1/D2, splits, sacred test set, 6-channel labels, RAovSeg architecture, preprocessing rule |
-| **4. Methods** | Generator backbone, conditioning mechanisms, adversarial loop, CFG/EMA/ISCS, Phase 2 cross-domain setup |
-| **5. Experiments and results** | Phase 1 generator quality (four variants), Phase 1 downstream (v1 → v2 → v3 → Options B/C), variance study, Phase 2 (exp2 catastrophic, exp2_lam05 pending) |
-| **6. Discussion and conclusion** | Four headline claims, meta-lessons, limitations, future work |
-| **7. Appendix — reproducibility** | GitHub repo, HPC layout, YAML configs, SLURM invocations |
-
-The two-phase structure of the empirical work maps onto Chapters 5 and 6:
-Chapter 5 lays out the ablations and their raw outcomes, Chapter 6
-interprets and generalises.
-
-## 1.7 Scope and out-of-scope
-
-**In scope:**
-- Ovary segmentation as the downstream task (RAovSeg full pipeline).
-- 2D conditional DDPM as the synthesis primitive (with a 3D-coherence
-  patch via ISCS at inference).
-- Concat vs SPADE conditioning; PatchGAN as the adversarial variant.
-- D2 T2FS in-domain (Phase 1) and D1 T2 cross-domain (Phase 2).
-
-**Out of scope (deliberate):**
-- Non-DDPM generators (GANs, VAEs, latent diffusion). The DDPM choice is
-  a locked design decision to keep the ablation spine clean.
-- Downstream segmenters other than RAovSeg. Whether a different segmenter
-  responds differently to our synth data is a limitation, discussed in §6.
-- Cyst-positive or endometrioma-positive subjects (excluded by RAovSeg's
-  inclusion criteria).
-- The D1 dataset for downstream evaluation. D1 is used only as generator
-  training data in Phase 2; the test set remains the 8 sacred D2 subjects
-  throughout.
-
-## 1.8 Reading path recommendation
-
-For a reader who wants the full story in dissertation order: read the
-chapters as numbered. For a reader coming in for a specific claim:
-
-- *"What did the ablation look like?"* → Chapter 4 (methods) and §5.2
-  (Phase 1 quality metrics).
-- *"Why did concat fail downstream while SPADE marginally helped?"* →
-  §5.3 (Phase 1 downstream) and Discussion §6.1 (claim 2).
-- *"Why is Phase 2 the sharpest negative result?"* → §5.5 (Phase 2 exp2)
-  and Discussion §6.1 (claim 1).
-- *"How would I reproduce any of this?"* → Chapter 7 (appendix).
+Chapter 2 reviews the literature, from clinical context through
+generative modelling to the specific concat/SPADE/PatchGAN techniques
+this dissertation ablates. Chapter 3 details the methodology — the
+UT-EndoMRI dataset, the RAovSeg downstream pipeline, the DDPM
+generator design, training strategy, and preprocessing alignment.
+Chapter 4 reports the experimental results, moving from Phase 1
+generator quality through the v1 → v2 → v3 downstream trajectory to
+the n = 8 variance study and the Phase 2 cross-domain collapse.
+Chapter 5 interprets the four headline claims. Chapter 6 concludes
+with contributions, limitations, and future work.

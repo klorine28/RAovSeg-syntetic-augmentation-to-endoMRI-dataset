@@ -1,8 +1,14 @@
-# 07 — Appendix: reproducibility
+# Appendix — Reproducibility
 
-> Code repository, HPC layout, YAML configs, SLURM invocation patterns,
-> and per-experiment reproduction recipes. Source: repo structure,
-> `../docs_archive/stanage_cheatsheet.md`, per-experiment SLURM scripts.
+> **Word count: uncounted** (appendices are excluded from the
+> 9,000–14,000 word range). Contains code repository pointer, HPC
+> layout, YAML config schema, SLURM invocation patterns, and
+> per-experiment reproduction recipes. Referenced by Chapter 3
+> (Methodology) for implementation detail.
+>
+> Source: repo structure, `../docs_archive/stanage_cheatsheet.md`,
+> per-experiment SLURM scripts. The Research Diary and Reflection
+> appendix lives in `08_research_diary.md` (separate 1,000-word budget).
 
 ---
 

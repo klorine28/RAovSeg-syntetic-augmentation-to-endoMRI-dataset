@@ -1,24 +1,35 @@
-# 05 — Experiments and results
+# 4 — Experiments and results
 
-> The full experimental narrative in the order the story unfolded: Phase
-> 1 generator ablation → Phase 1 downstream augmentation (v1 → v2 → v3
-> → Options B and C) → n=8 variance study → Phase 2 cross-domain.
-> exp2_lam05 is a placeholder to be filled when the SLURM job lands.
-> Source: `../docs_archive/RESULTS_2x2.md`, `../docs_archive/RAOVSEG_AUGMENTATION_EXPERIMENT.md`,
-> `../docs_archive/EXP1B_SUMMARY.md`, `../docs_archive/EXP1C_SUMMARY.md`, memory files, and the
-> per-variant `quality.json` + variance study JSONs.
+> **Target: 3,500 words.** The full experimental narrative in the order
+> the story unfolded: Phase 1 generator ablation → Phase 1 downstream
+> augmentation (v1 → v2 → v3 → Options B and C) → n=8 variance study →
+> Phase 2 cross-domain. exp2_lam05 is a placeholder to be filled when
+> the SLURM job lands.
+>
+> **Sub-targets (for pruning current draft):**
+> - §4.1 Experimental overview: 200 words
+> - §4.2 Phase 1 generator quality: 1,000 words
+> - §4.3 Phase 1 downstream (v1 → v3 + Options B/C): 1,400 words
+> - §4.4 n=8 variance study: 700 words
+> - §4.5 Phase 2 (exp2): 500 words
+> - §4.6 exp2_lam05 placeholder: 200 words (fill when data lands)
+>
+> Current draft (~707 lines) exceeds the target; use the section
+> targets to prune. Detailed source material remains available in
+> `../docs_archive/RESULTS_2x2.md` and
+> `../docs_archive/RAOVSEG_AUGMENTATION_EXPERIMENT.md`.
 
 ---
 
-## 5.1 Experimental overview
+## 4.1 Experimental overview [target: 200 words]
 
 | Phase | Experiment | Purpose | Status | Result |
 |---|---|---|---|---|
 | Real-only baseline | RAovSeg on 30 D2 subjects | Reproduce Liang et al. (2025) | Done | DSC 0.290 |
-| Phase 1 | Exp 1a — concat DDPM | Baseline generator (global conditioning) | Done, 80k steps | See §5.2 |
-| Phase 1 | Exp 1b — SPADE DDPM | Per-organ conditioning ablation | Done, 80k steps | See §5.2 |
-| Phase 1 | Exp 1c_concat — concat + PatchGAN | Adversarial on concat | Done, 100k steps | See §5.2 |
-| Phase 1 | Exp 1c_spade — SPADE + PatchGAN | Adversarial on SPADE | Done, 100k steps | See §5.2 |
+| Phase 1 | Exp 1a — concat DDPM | Baseline generator (global conditioning) | Done, 80k steps | See §4.2 |
+| Phase 1 | Exp 1b — SPADE DDPM | Per-organ conditioning ablation | Done, 80k steps | See §4.2 |
+| Phase 1 | Exp 1c_concat — concat + PatchGAN | Adversarial on concat | Done, 100k steps | See §4.2 |
+| Phase 1 | Exp 1c_spade — SPADE + PatchGAN | Adversarial on SPADE | Done, 100k steps | See §4.2 |
 | Phase 1 downstream | v1 (no fixes) | Naive augmentation | Done, n=3 | −48% to −52% vs baseline |
 | Phase 1 downstream | v2 (3 preprocessing fixes) | Body-frame + hist match + resample | Done, n=3 | −85% concat, −42% SPADE |
 | Phase 1 downstream | v3 (Path B ovary rescale) | Label-aware intensity target | Done, n=3 | −25% SPADE (0.218) |
@@ -30,9 +41,9 @@
 
 ---
 
-## 5.2 Phase 1 — generator quality results
+## 4.2 Phase 1 — generator quality results [target: 1,000 words]
 
-### 5.2.1 The four variants, side-by-side
+### 4.2.1 The four variants, side-by-side
 
 | Variant | Conditioning | Adversarial | Steps | g | Notes |
 |---|---|---|---|---|---|
@@ -45,7 +56,7 @@ All four trained on the same 32 D2 subjects (~730 slices), same body-
 centered preprocessing, same 6-channel labels, same batch=4 AdamW lr=1e-4
 schedule.
 
-### 5.2.2 Master metrics table
+### 4.2.2 Master metrics table
 
 | Variant | CLR_ut ↑ | CLR_ov_L ↑ | CLR_em ↑ | OSI_organ | OSI_body | **FID ↓** | hist_KL ↓ | LPIPS_min | LPIPS_mean ↓ |
 |---|---|---|---|---|---|---|---|---|---|
@@ -57,7 +68,7 @@ schedule.
 ↑ = higher is better, ↓ = lower is better. **Bold** = column winner.
 Source: `../metrics/master_metrics.csv`.
 
-### 5.2.3 What each metric tells us
+### 4.2.3 What each metric tells us
 
 **CLR (Counterfactual Localisation Ratio)** — for each label channel,
 zero the channel, regenerate with the same initial noise, and compute
@@ -113,7 +124,7 @@ distance to nearest real image in AlexNet feature space.
 lowest mean (0.699) — synth perceptually closest to real without
 memorisation.
 
-### 5.2.4 The architectural map
+### 4.2.4 The architectural map
 
 ```
                 ← MORE LOCALISED                  MORE GLOBAL →
@@ -142,9 +153,9 @@ memorisation.
 
 **No single winner across metrics.** The choice of variant depends on
 what the downstream consumer cares about — which is the whole point of
-running the augmentation study in §5.3.
+running the augmentation study in §4.3.
 
-### 5.2.5 PatchGAN's asymmetric effect
+### 4.2.5 PatchGAN's asymmetric effect
 
 The 2-arm design (same PatchGAN on both backbones) isolates the
 adversarial contribution from the conditioning mechanism.
@@ -165,7 +176,7 @@ adversarial contribution from the conditioning mechanism.
 This is one of Chapter 6's headline claims: PatchGAN is not a generic
 realism booster.
 
-### 5.2.6 An earlier misinterpretation, corrected
+### 4.2.6 An earlier misinterpretation, corrected
 
 An earlier visual inspection of SPADE counterfactual diff panels
 suggested SPADE was not doing per-organ localisation ("removing the
@@ -180,7 +191,7 @@ does what it was designed to do. The RESULTS_2x2 doc originally
 propagated the wrong visual reading; the correction is now the canonical
 interpretation and drives the Chapter 6 architectural claim.
 
-### 5.2.7 Caveats on Phase 1 quality metrics
+### 4.2.7 Caveats on Phase 1 quality metrics
 
 - **CLR and OSI computed at N=4** — small sample. The 5–10× concat vs
   SPADE CLR gap is robust to noise; smaller within-arm differences
@@ -193,14 +204,14 @@ interpretation and drives the Chapter 6 architectural claim.
 - **Absolute FID 170–200 is high** but expected at 32 training subjects.
   Published medical synthesis at this data scale often sits in 100–300.
 
-## 5.3 Phase 1 downstream — RAovSeg augmentation
+## 4.3 Phase 1 downstream — RAovSeg augmentation [target: 1,400 words]
 
 The Phase 1 quality metrics tell us *what the generators are like*. The
 actual test of the project's hypothesis is whether the synth improves
 downstream ovary DSC. This is done via `assemble_synthetic_volumes.py`
 + `preprocess.py --extra-train-dir` + full RAovSeg training.
 
-### 5.3.1 v1 — no preprocessing fixes
+### 4.3.1 v1 — no preprocessing fixes
 
 **Setup**: 30 synth (attempted; 16–19 actually assembled due to SLURM
 timeout) + 30 real train subjects. Test on 8 sacred D2 subjects. n=3
@@ -222,7 +233,7 @@ seeds per variant.
 reproducible across seeds (std 0.006); SPADE has more variance (std
 0.049).
 
-### 5.3.2 The diagnostic — what went wrong at v1
+### 4.3.2 The diagnostic — what went wrong at v1
 
 We loaded `data/processed/train_val/D2-001/image.npy` (real, post-
 RAovSeg-preprocess) and `data/processed/train_val/D2-900/image.npy`
@@ -269,7 +280,7 @@ Every primary suspect from the pressure-points list confirmed:
 
 The v1 → v2 fix plan was adopted directly from this diagnostic.
 
-### 5.3.3 v2 — three preprocessing fixes
+### 4.3.3 v2 — three preprocessing fixes
 
 Applied to `src/Generator/assemble_synthetic_volumes.py`:
 
@@ -308,7 +319,7 @@ clean black, histograms have similar overall shape.
 modestly; concat collapsed. concat seed 2 returned DSC = 0.000 on every
 test subject.
 
-### 5.3.4 Why v2 fixes broke concat but helped SPADE
+### 4.3.4 Why v2 fixes broke concat but helped SPADE
 
 Root cause: **histogram matching is rank-based, not semantic**. It
 aligns the synth's brightest pixels with the real's brightest pixels by
@@ -334,9 +345,9 @@ predict ovary at wrong locations → real test DSC collapses.
 **This is the paper's first clean architectural finding**: concat's
 CLR ~0.03 predicts its downstream failure. See Chapter 6, claim 2.
 
-### 5.3.5 v3 — Path B: label-aware ovary intensity rescaling
+### 4.3.5 v3 — Path B: label-aware ovary intensity rescaling
 
-Insight from §5.3.4: instead of hoping histogram matching places synth
+Insight from §4.3.4: instead of hoping histogram matching places synth
 ovary pixels at the right intensity by rank luck, explicitly force them
 there using the ovary label mask.
 
@@ -364,7 +375,7 @@ ovary-textured content in the ovary region — the rescale just puts a
 bright blob at the label location, disconnected from surrounding synth
 tissue, which the segmenter can't learn from.
 
-### 5.3.6 The architectural interpretation of v3
+### 4.3.6 The architectural interpretation of v3
 
 This maps cleanly to Phase 1's CLR finding:
 
@@ -378,13 +389,13 @@ can't → intensity shifting doesn't rescue it. SPADE can → intensity
 shifting turns "correctly-located but wrong-intensity" ovary into
 "correctly-located, correctly-highlighted" ovary that RAovSeg can find.
 
-### 5.3.7 Option B — sweep the ovary target intensity (SPADE-only)
+### 4.3.7 Option B — sweep the ovary target intensity (SPADE-only)
 
 The current Path B target t = 0.26 was a first guess. Values at the
 edges of the [0.22, 0.30] enhancement window might work better if there
 is an interaction with the percentile-clip that shifts things.
 
-**Setup**: SPADE only (concat is a lost cause per §5.3.5), n=3 seeds.
+**Setup**: SPADE only (concat is a lost cause per §4.3.5), n=3 seeds.
 
 | Config | seed 0 | seed 1 | seed 2 | Mean | Std |
 |---|---|---|---|---|---|
@@ -397,7 +408,7 @@ intensity away from the middle of the enhancement window (down to 0.22
 or up to 0.28) reduced the mean DSC. Confirms "put the ovary in the
 middle of the enhancement window" was the right heuristic.
 
-### 5.3.8 Option C — skip enhancement for synth subjects
+### 4.3.8 Option C — skip enhancement for synth subjects
 
 Diagnostic: is the enhancement step itself the bottleneck? If we skip
 it for synth (train on synth-as-is with percentile-clip + minmax only,
@@ -415,7 +426,7 @@ subject ID matches `D2-9*`.
 (0.218). When enhancement fires correctly on synth (via Path B), it IS
 beneficial. Removing enhancement does not rescue synth utility.
 
-### 5.3.9 Full trajectory including B and C (pre-variance-study)
+### 4.3.9 Full trajectory including B and C (pre-variance-study)
 
 | Version | concat | spade (n=3) |
 |---|---|---|
@@ -431,16 +442,16 @@ beneficial. Removing enhancement does not rescue synth utility.
 SPADE augmentation.** That's the ceiling of what SPADE synth at this
 quality level (FID ~188, hist_KL ~7.2, CLR ~0.4) can contribute.
 
-## 5.4 The n=8 variance study — v3 SPADE revisited
+## 4.4 The n=8 variance study — v3 SPADE revisited [target: 700 words]
 
 **Motivation**: at n=3, std is 0.057 → mean known to only ±0.06. To
 decide whether variance is masking a real augmentation benefit, we ran
 5 more seeds (3–7) of the same v3 config and analysed both cross-seed
 and per-subject variance.
 
-### 5.4.1 Aggregate n=8 result
+### 4.4.1 Aggregate n=8 result
 
-| | n=3 (§5.3) | **n=8** |
+| | n=3 (§4.3) | **n=8** |
 |---|---|---|
 | Mean DSC | 0.2181 | **0.1783** |
 | Std across seeds | 0.0570 | 0.0537 |
@@ -464,7 +475,7 @@ The extra 5 seeds (3–7) averaged 0.1544 ± 0.0378 — well below the
 original three. **The original 0.218 mean was luck, not a stable
 estimate.**
 
-### 5.4.2 Per-subject variance dwarfs cross-seed variance
+### 4.4.2 Per-subject variance dwarfs cross-seed variance
 
 Across the 8 test subjects × 8 seeds:
 
@@ -487,7 +498,7 @@ Across the 8 test subjects × 8 seeds:
   ACROSS seeds (~0.054).** The dominant variance axis is per-subject
   tractability, not training-run seed.
 
-### 5.4.3 What the variance study told the paper story
+### 4.4.3 What the variance study told the paper story
 
 1. **The "variance masks a real benefit" story is dead.** SPADE
    augmentation under Phase 1 conditions robustly underperforms the
@@ -509,7 +520,7 @@ Across the 8 test subjects × 8 seeds:
    to move the needle. Continuing to tune Phase 1 augmentation has no
    remaining upside.
 
-### 5.4.4 Corrected v3 SPADE cell
+### 4.4.4 Corrected v3 SPADE cell
 
 The final v3 row should read (post-variance-study):
 
@@ -521,7 +532,7 @@ Anywhere the paper cites v3 SPADE, use the n=8 numbers (0.178 ± 0.054),
 not the earlier n=3 numbers (0.218 ± 0.057). Any Phase 2 comparisons
 should be against 0.178.
 
-## 5.5 Phase 2 — cross-domain (exp2)
+## 4.5 Phase 2 — cross-domain (exp2) [target: 500 words]
 
 **Motivation**: Phase 1 exhausted preprocessing-fix levers within the
 D2-only generator setup. The remaining hypothesis is that data scale
@@ -529,7 +540,7 @@ and diversity — not architectural or preprocessing choices — are the
 limiting factor. Cross-domain leverages D1's 51-subject T2 pool (~70%
 larger than D2's 32 subjects) for diversity.
 
-### 5.5.1 Configuration recap
+### 4.5.1 Configuration recap
 
 - Generator: SPADE + PatchGAN backbone (inherited from 1c_spade).
 - Generator training data: D1_MHS T2 (32 subjects).
@@ -546,7 +557,7 @@ Assembly (`assemble_synth_exp2.sh`): all three preprocessing fixes ON
 (body silhouette mask, histogram match to D1 raw source, resample to D1
 source frame). 32 synth volumes assembled.
 
-### 5.5.2 exp2 DSC results (n=3)
+### 4.5.2 exp2 DSC results (n=3)
 
 | Seed | DSC (full) |
 |---|---|
@@ -560,7 +571,7 @@ vs Phase 1 v3 SPADE (n=8): 0.178 ± 0.054
 vs real-only baseline: 0.290
 **Gap to baseline: −93%. Gap to Phase 1 best: −89%.**
 
-### 5.5.3 Why Phase 2 collapsed
+### 4.5.3 Why Phase 2 collapsed
 
 Sample grids at every step from 5k → 95k show the generator plateaued
 at "gray-blob body silhouette with textured noise" — **no distinct T2FS
@@ -582,7 +593,7 @@ style acquired, no visible organ structure**. Diagnosis:
    in-domain), fewer training subjects (32 D1 vs 41 D2).** Both
    compounded the two above.
 
-### 5.5.4 Why the −93% DSC drop is stable
+### 4.5.4 Why the −93% DSC drop is stable
 
 - **3 seeds within std ~0.010** (much tighter than Phase 1's ~0.054).
 - All 3 seeds land in the same failure mode: predict near-zero ovary on
@@ -591,7 +602,7 @@ style acquired, no visible organ structure**. Diagnosis:
   real signal.** At n=30 real, ~30 pieces of gray-blob "training data"
   is enough to break the model's ovary-detection prior.
 
-### 5.5.5 What Phase 2 tells the paper
+### 4.5.5 What Phase 2 tells the paper
 
 Detailed in Chapter 6. The three claims that emerge from exp2:
 
@@ -610,7 +621,7 @@ Detailed in Chapter 6. The three claims that emerge from exp2:
    extension actively harms. Together they map the design space where
    synth augmentation fails in this regime.
 
-## 5.6 exp2_lam05 — λ_peak = 0.05 diagnostic
+## 4.6 exp2_lam05 — λ_peak = 0.05 diagnostic [target: 200 words, PENDING]
 
 **Status**: PENDING. SLURM job running as of the writing of the
 `../docs_archive/PAPER_OUTLINE.md` two weeks ago and the `../docs_archive/NEXT_STEPS.md` status snapshot.
@@ -618,7 +629,7 @@ Local artefacts: `exp2_lam05_samples/`, `scripts/train_exp2_lam05.sh`,
 `scripts/assemble_synth_exp2_lam05.sh`, `scripts/run_raovseg_aug_exp2_
 lam05_seed{0,1,2}.sh`.
 
-### 5.6.1 Rationale
+### 4.6.1 Rationale
 
 exp2 failed with λ_peak = 0.01 → adversarial signal too weak. exp2_lam05
 tests λ_peak = 0.05 (5× exp2) — the same generator + D setup, higher
@@ -629,7 +640,7 @@ being tested: "did we abandon exp2 prematurely at λ = 0.01, or is the
 whole DDPM + adv cross-domain paradigm at n < 50 architecturally
 insufficient?" Not "will λ = 0.05 recover baseline DSC 0.290."
 
-### 5.6.2 Expected outcome interpretation matrix
+### 4.6.2 Expected outcome interpretation matrix
 
 Filled ahead of time so the doc just needs DSC pasted in when the job
 completes.
@@ -642,7 +653,7 @@ completes.
 | 0.15 – 0.20 | Reaches Phase 1 SPADE augmentation ceiling. Reported as "λ tuning recovers Phase 1's ceiling but does not exceed it." Cross-domain is not additive at these scales. |
 | ≥ 0.20 | **Unexpected**. Would reverse Phase 2 negative conclusion. Trigger n=5 replication before reporting; revisit Chapter 6 framing. |
 
-### 5.6.3 What to fill in when the job lands
+### 4.6.3 What to fill in when the job lands
 
 - The `[Seed / DSC]` table below (replace `[TBD]`):
 
@@ -660,25 +671,110 @@ completes.
 - If DSC ∈ [0.05, 0.20], describe interpretive shift; otherwise leave
   Chapter 6 claim 1 unchanged.
 
-## 5.7 Cross-experiment DSC summary
+## 4.7 exp2_pathC — diagnostic-driven preprocessing rescue
+
+### 4.7.1 Motivation
+
+After exp2's collapse to 0.020, we ran a synth-vs-real intensity
+diagnostic (`src/RaovSeg_recreation/diagnose_synth_vs_real.py`) that
+plots per-variant body-voxel intensity histograms after RAovSeg's
+percentile-clip + minmax normalisation. Key finding:
+
+- **Real D2 body voxels** are bimodal — one peak near 0.10 (suppressed
+  fat / background), another near 0.55 (organs / other tissue). RAovSeg's
+  enhancement window [0.22, 0.30] sits in the VALLEY between them, so
+  the enhancement fires predominantly on ovary and nearby structures.
+- **1c_spade synth body voxels** are similarly bimodal → enhancement
+  window in the valley → augments mostly ovary. Consistent with Phase 1's
+  usable DSC 0.178.
+- **exp2 synth body voxels** are unimodal, peaked around 0.35 — the peak
+  sits **on top of** the enhancement window. When RAovSeg applies the
+  enhancement, it saturates ~30–40% of body voxels to 1, not just
+  ovaries. The segmenter learns "if it looks like this, ovary is
+  everywhere" and predicts near-zero at test time on real T2FS.
+
+**The primary mechanism behind exp2's −93% collapse is a preprocessing
+mismatch — not generator quality per se.**
+
+### 4.7.2 The fix
+
+Skip the enhancement step for D2-9 prefix subjects via
+`preprocess.py --skip-enhancement-for-prefix D2-9`. The synth remains
+in the training set at its natural intensity distribution; the RAovSeg
+enhancement fires only on real D2 T2FS. Everything else (generator,
+synth NIfTIs, augmentation ratio, seeds) unchanged.
+
+### 4.7.3 exp2_pathC DSC results (n=3)
+
+| Seed | DSC (full) |
+|---|---|
+| 0 | 0.1317 |
+| 1 | 0.2118 |
+| 2 | 0.1117 |
+| **Mean** | **0.1517** |
+| Std | 0.0538 |
+
+vs exp2 (naive): 0.020 ± 0.010 → **+0.132 DSC (7.6× improvement)**
+vs Phase 1 v3 SPADE (n=8): 0.178 ± 0.054 → within 0.5σ, no
+statistically significant difference at n=3.
+vs baseline: 0.290 → still −48% but no longer catastrophic.
+
+Best seed (seed 1) hit 0.2118 — above Phase 1 v3's n=8 mean of 0.178.
+
+### 4.7.4 What §4.7 tells the paper
+
+1. **Preprocessing alignment is the dominant downstream lever, not
+   generator quality.** exp2's generator quality is unchanged between the
+   0.020 and 0.152 configurations. The 0.132 DSC gain came from ONE
+   preprocessing flag on the SAME synth NIfTI files.
+
+2. **Cross-domain synth is competitive with in-domain synth once
+   preprocessing is fixed.** exp2_pathC (0.152) vs Phase 1 v3 SPADE
+   (0.178) — means within 0.5σ. No cross-domain benefit at mean-effect
+   level, but no additional penalty once the enhancement mis-application
+   is corrected.
+
+3. **The −93% number remains a valid diagnostic case study, not the
+   headline Phase 2 number.** For the paper's Phase 1 vs Phase 2
+   comparison, **use exp2_pathC (0.152) as the Phase 2 downstream
+   result**, and use exp2 (0.020) as an illustration of how
+   preprocessing mismatch can catastrophically poison training.
+
+4. **The gap to baseline persists across all configurations.** Even the
+   best "fixed" Phase 2 mean (0.152) is 48% below 0.290. At n=30 real,
+   augmentation with either in-domain (Phase 1) or cross-domain (Phase 2)
+   synth cannot close the gap.
+
+## 4.8 Cross-experiment DSC summary
 
 | Configuration | n | DSC (mean ± std) | Δ vs baseline |
 |---|---|---|---|
 | **Baseline (real-only)** | — | **0.290** | — |
 | Phase 1 v3 concat (t=0.26) | 3 | 0.053 ± 0.056 | −82% |
-| Phase 1 v3 SPADE (t=0.26) | 3 → 8 | **0.178 ± 0.054** | **−38%** |
+| Phase 1 v3 SPADE (t=0.26) | 3 → 8 | **0.178 ± 0.054** | **−39%** |
 | Phase 1 Opt B SPADE (t=0.22) | 3 | 0.165 ± 0.096 | −43% |
 | Phase 1 Opt B SPADE (t=0.28) | 3 | 0.189 ± 0.102 | −35% |
 | Phase 1 Opt C SPADE (no enh) | 3 | 0.170 ± 0.056 | −41% |
-| **Phase 2 exp2** (D1 gen + D2 disc, λ=0.01) | 3 | **0.020 ± 0.010** | **−93%** |
+| **Phase 2 exp2** (D1 gen + D2 disc, λ=0.01, naive) | 3 | **0.020 ± 0.010** | **−93%** ← diagnostic case study |
+| **Phase 2 exp2_pathC** (skip enh for D2-9) | 3 | **0.152 ± 0.054** | **−48%** ← Phase 2 headline |
 | Phase 2 exp2_lam05 (λ=0.05) | 3 | [TBD] | [TBD] |
+| Phase 2 exp2_lam50 (λ=0.5) | 3 | [TBD] | [TBD] |
 
-**The two headline numbers are 0.178 (best Phase 1) and 0.020 (Phase 2)**
-— both meaningfully below the 0.290 real-only baseline. exp2_lam05 will
-either reinforce Phase 2's negative or, in the unlikely case of a large
-positive, force a Chapter 6 revision.
+**The three headline numbers are:**
+- **0.178** (best Phase 1, in-domain synth) — the ceiling of preprocessing
+  tuning on Phase 1 pathway.
+- **0.152** (Phase 2 with proper preprocessing) — cross-domain matches
+  in-domain within noise; preprocessing lever explains most of the
+  Phase 2 story.
+- **0.020** (Phase 2 naive) — the diagnostic case study proving that
+  preprocessing mismatch destroys downstream utility.
 
-## 5.8 Notes on reproducibility of these results
+All three are meaningfully below the 0.290 real-only baseline. The
+pending λ tunings will either strengthen the "cross-domain matches
+in-domain" claim (if similar to pathC) or provide additional evidence
+that adversarial weight is not the limiting factor.
+
+## 4.9 Notes on reproducibility of these results
 
 - All Phase 1 checkpoints and Phase 2 exp2 checkpoints are on Stanage at
   `/mnt/parscratch/users/ijp25lg/synth_mri/runs/exp1{a,b,c_concat,
@@ -692,7 +788,7 @@ positive, force a Chapter 6 revision.
 - exp2 DSC summary: `../metrics/exp2_dsc_summary.json`.
 - Full commands and SLURM scripts: Chapter 7 appendix.
 
-## 5.9 What is not in this chapter
+## 4.10 What is not in this chapter
 
 - **Radiologist qualitative review results** — 50 matched-anatomy synth
   samples per variant were prepared in `{variant}/radiologist_review/`

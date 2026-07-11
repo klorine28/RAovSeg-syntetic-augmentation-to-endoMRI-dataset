@@ -1,0 +1,26 @@
+{
+  "variant": "lam05",
+  "seeds": [
+    {
+      "seed": 0,
+      "status": "ok",
+      "dsc_mean": 0.2457,
+      "dsc_std": 0.2106,
+      "log": "logs/raov_aug_lam05_s0_10763115.out"
+    },
+    {
+      "seed": 1,
+      "status": "ok",
+      "dsc_mean": 0.0561,
+      "dsc_std": 0.1109,
+      "log": "logs/raov_aug_lam05_s1_10763116.out"
+    },
+    {
+      "seed": 2,
+      "status": "ok",
+      "dsc_mean": 0.0492,
+      "dsc_std": 0.0993,
+      "log": "logs/raov_aug_lam05_s2_10763118.out"
+    }
+  ]
+}

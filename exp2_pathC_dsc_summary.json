@@ -1,0 +1,26 @@
+{
+  "variant": "exp2_pathC",
+  "seeds": [
+    {
+      "seed": 0,
+      "status": "ok",
+      "dsc_mean": 0.1317,
+      "dsc_std": 0.2407,
+      "log": "logs/raov_exp2C_s0_10765437.out"
+    },
+    {
+      "seed": 1,
+      "status": "ok",
+      "dsc_mean": 0.2118,
+      "dsc_std": 0.2281,
+      "log": "logs/raov_exp2C_s1_10765438.out"
+    },
+    {
+      "seed": 2,
+      "status": "ok",
+      "dsc_mean": 0.1117,
+      "dsc_std": 0.1935,
+      "log": "logs/raov_exp2C_s2_10765439.out"
+    }
+  ]
+}
