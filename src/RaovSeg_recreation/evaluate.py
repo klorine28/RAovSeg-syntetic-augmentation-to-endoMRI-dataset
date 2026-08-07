@@ -1,14 +1,23 @@
 """
-Evaluation pipeline: ResClass -> AttUSeg -> Post-processing -> DSC.
+Evaluation pipeline: ResClass -> AttUSeg -> Post-processing -> full metric bundle.
 Runs the full RAovSeg pipeline on test subjects.
 
 Paper benchmarks (Dataset 2, n=8 test subjects):
   - Full pipeline (preprocess + ResClass + AttUSeg + postprocess): DSC = 0.290
   - Without postprocessing: DSC = 0.235
   - Without ResClass (AttUSeg only): DSC = 0.013
+
+Metric bundle per subject (see metrics.py):
+  DSC, IoU, sensitivity, precision, HD95 (voxels), volume error, volume_pred, volume_gt.
+
+Aggregate reporting includes bootstrap 95% CI on each metric across the test cohort.
+
+--target selects which organ label file to score against
+  (default `ov` -> ov_label.npy; use `ut` for uterus once preprocess emits ut_label.npy).
 """
 
 import sys
+import json
 import argparse
 from pathlib import Path
 
@@ -21,9 +30,10 @@ from monai.networks.nets import AttentionUnet
 # import works without further setup.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from train_resclass import TwoBlockResNet
+from metrics import METRIC_KEYS, compute_metric_bundle, summary_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "RAovSeg"))
-from RAovSeg_tools import postprocess_, dsc_cal_np
+from RAovSeg_tools import postprocess_
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -52,14 +62,13 @@ def load_attuseg(model_path: Path) -> nn.Module:
 
 
 @torch.no_grad()
-def predict_subject(image: np.ndarray, label: np.ndarray,
-                    resclass: nn.Module, attuseg: nn.Module,
+def predict_subject(image: np.ndarray, resclass: nn.Module, attuseg: nn.Module,
                     use_resclass: bool = True, use_postprocess: bool = True,
                     resclass_threshold: float = RESCLASS_THRESHOLD,
-                    closing_iterations: int = CLOSING_ITERATIONS):
-    """Run full pipeline on one subject. Returns DSC and prediction volume."""
+                    closing_iterations: int = CLOSING_ITERATIONS) -> np.ndarray:
+    """Run the pipeline on one subject and return the predicted binary volume."""
     n_slices = image.shape[0]
-    prediction = np.zeros_like(label, dtype=np.float32)
+    prediction = np.zeros_like(image, dtype=np.float32)
 
     for s in range(n_slices):
         img_slice = torch.from_numpy(image[s][np.newaxis, np.newaxis, ...]).float().to(DEVICE)
@@ -80,8 +89,7 @@ def predict_subject(image: np.ndarray, label: np.ndarray,
     if use_postprocess:
         prediction = postprocess_(prediction, closing_iterations=closing_iterations).astype(np.float32)
 
-    dsc = dsc_cal_np(prediction, label)
-    return dsc, prediction
+    return prediction
 
 
 def main():
@@ -92,13 +100,19 @@ def main():
                         default=Path(__file__).resolve().parents[2] / "models")
     parser.add_argument("--output-dir", type=Path,
                         default=Path(__file__).resolve().parents[2] / "data" / "predictions")
+    parser.add_argument("--target", type=str, default="ov",
+                        help="Label channel to score against (ov | ut | em | cy). "
+                             "Uses <target>_label.npy in each subject dir.")
     parser.add_argument("--resclass-threshold", type=float, default=RESCLASS_THRESHOLD,
                         help="ResClass binary threshold (paper unspecified; tuned on val)")
     parser.add_argument("--closing-iterations", type=int, default=CLOSING_ITERATIONS,
                         help="Postprocessing closing iterations (paper unspecified)")
+    parser.add_argument("--metrics-out", type=Path, default=None,
+                        help="Optional path to dump per-subject metrics as JSON.")
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    label_file = f"{args.target}_label.npy"
 
     # Clean stale *_pred.npy files from prior runs so the predictions dir
     # matches the current test split. Sweep CSVs (sweep_*.csv,
@@ -109,63 +123,127 @@ def main():
         for f in stale:
             f.unlink()
 
-    # Load models
-    resclass = load_resclass(args.models_dir / "resclass_best.pth")
-    attuseg = load_attuseg(args.models_dir / "attuseg_best.pth")
+    # Load models — prefer target-suffixed checkpoints (new layout),
+    # fall back to un-suffixed (legacy — ovary-only runs before --target existed).
+    def _resolve(name: str) -> Path:
+        target_path = args.models_dir / f"{name}_best_{args.target}.pth"
+        legacy_path = args.models_dir / f"{name}_best.pth"
+        if target_path.exists():
+            return target_path
+        if legacy_path.exists() and args.target == "ov":
+            print(f"[eval] using legacy checkpoint: {legacy_path.name}")
+            return legacy_path
+        raise FileNotFoundError(
+            f"No checkpoint for '{name}' target='{args.target}' in {args.models_dir}. "
+            f"Looked for {target_path.name} then {legacy_path.name}."
+        )
+
+    resclass = load_resclass(_resolve("resclass"))
+    attuseg = load_attuseg(_resolve("attuseg"))
     print(f"Models loaded. Device: {DEVICE}")
+    print(f"Target: {args.target} (label file: {label_file})")
     print(f"ResClass threshold: {args.resclass_threshold}")
     print(f"Closing iterations: {args.closing_iterations}\n")
 
-    # Evaluate each test subject
-    results = {"full": [], "no_postprocess": [], "no_resclass": []}
+    # Per-mode per-subject metric records.
+    modes = {"full": [], "no_postprocess": [], "no_resclass": []}
 
     for subj_dir in sorted(args.test_dir.iterdir()):
         if not subj_dir.is_dir():
             continue
 
         img_path = subj_dir / "image.npy"
-        lbl_path = subj_dir / "ov_label.npy"
-
+        lbl_path = subj_dir / label_file
         if not img_path.exists() or not lbl_path.exists():
-            print(f"{subj_dir.name}: SKIP (no label)")
+            print(f"{subj_dir.name}: SKIP (no {label_file})")
             continue
 
         image = np.load(img_path)
         label = np.load(lbl_path)
 
         # Full pipeline
-        dsc_full, pred = predict_subject(image, label, resclass, attuseg,
-                                         use_resclass=True, use_postprocess=True,
-                                         resclass_threshold=args.resclass_threshold,
-                                         closing_iterations=args.closing_iterations)
-        results["full"].append(dsc_full)
+        pred = predict_subject(image, resclass, attuseg,
+                               use_resclass=True, use_postprocess=True,
+                               resclass_threshold=args.resclass_threshold,
+                               closing_iterations=args.closing_iterations)
+        m_full = compute_metric_bundle(pred, label)
+        m_full["subject"] = subj_dir.name
+        modes["full"].append(m_full)
 
         # Ablation: no post-processing
-        dsc_nopp, _ = predict_subject(image, label, resclass, attuseg,
-                                      use_resclass=True, use_postprocess=False,
-                                      resclass_threshold=args.resclass_threshold)
-        results["no_postprocess"].append(dsc_nopp)
+        pred_nopp = predict_subject(image, resclass, attuseg,
+                                    use_resclass=True, use_postprocess=False,
+                                    resclass_threshold=args.resclass_threshold)
+        m_nopp = compute_metric_bundle(pred_nopp, label)
+        m_nopp["subject"] = subj_dir.name
+        modes["no_postprocess"].append(m_nopp)
 
         # Ablation: no ResClass
-        dsc_norc, _ = predict_subject(image, label, resclass, attuseg,
-                                      use_resclass=False, use_postprocess=True,
-                                      closing_iterations=args.closing_iterations)
-        results["no_resclass"].append(dsc_norc)
+        pred_norc = predict_subject(image, resclass, attuseg,
+                                    use_resclass=False, use_postprocess=True,
+                                    closing_iterations=args.closing_iterations)
+        m_norc = compute_metric_bundle(pred_norc, label)
+        m_norc["subject"] = subj_dir.name
+        modes["no_resclass"].append(m_norc)
 
-        # Save prediction
+        # Save prediction from the full pipeline
         np.save(args.output_dir / f"{subj_dir.name}_pred.npy", pred)
 
-        print(f"{subj_dir.name}: DSC full={dsc_full:.4f} | no_pp={dsc_nopp:.4f} | no_rc={dsc_norc:.4f}")
+        print(f"{subj_dir.name}: "
+              f"DSC full={m_full['dsc']:.4f} | no_pp={m_nopp['dsc']:.4f} | no_rc={m_norc['dsc']:.4f}  "
+              f"| HD95={m_full['hd95_mm']:.1f} mm  volErr={m_full['volume_error']:+.2f}")
 
-    # Summary
-    print("\n" + "=" * 60)
-    print("RESULTS SUMMARY")
-    print("=" * 60)
-    for key, values in results.items():
-        if values:
-            print(f"  {key:20s}: mean DSC = {np.mean(values):.4f} ± {np.std(values):.4f} (n={len(values)})")
+    # Aggregate summary
+    print("\n" + "=" * 78)
+    print(f"RESULTS SUMMARY  (target={args.target})")
+    print("=" * 78)
+    header = f"{'mode':<20} {'metric':<15} {'n':>3}  {'mean':>7}  {'std':>7}  {'CI95_lo':>7}  {'CI95_hi':>7}"
+    print(header)
+    print("-" * len(header))
 
-    print(f"\nPaper benchmarks: full=0.290, no_postprocess=0.235, no_resclass=0.013")
+    aggregate = {}
+    for mode_name, records in modes.items():
+        aggregate[mode_name] = {}
+        for key in METRIC_KEYS:
+            values = [r[key] for r in records]
+            row = summary_row(values, name=f"{mode_name}.{key}")
+            aggregate[mode_name][key] = row
+            print(f"{mode_name:<20} {key:<15} {row['n']:>3}  "
+                  f"{row['mean']:>7.4f}  {row['std']:>7.4f}  "
+                  f"{row['ci95_lo']:>7.4f}  {row['ci95_hi']:>7.4f}")
+        print()
+
+    print(f"Paper benchmarks: full=0.290, no_postprocess=0.235, no_resclass=0.013")
+
+    if args.metrics_out is not None:
+        args.metrics_out.parent.mkdir(parents=True, exist_ok=True)
+        # Persist the settings that were APPLIED at eval time. Downstream
+        # analysis needs these to flag e.g. "ovary-tuned enhancement was
+        # applied while scoring uterus" — non-obvious from the metrics alone.
+        out = {
+            "target": args.target,
+            "applied_settings": {
+                "resclass_threshold": args.resclass_threshold,
+                "closing_iterations": args.closing_iterations,
+                "resclass_threshold_note": (
+                    "0.6 validated on OVARY only (see sweep_threshold.py); "
+                    "used unchanged for uterus/em/cy — see M1 in audit."
+                    if args.target != "ov" else "0.6 tuned on ovary validation set"
+                ),
+                "enhancement_window_note": (
+                    "Enhancement window [0.22, 0.30] applied at preprocess time "
+                    "was tuned by Liang et al. for OVARY tissue intensity. Any "
+                    "non-ovary target scores are computed after that ovary-specific "
+                    "saturation has been applied to the input images."
+                ),
+                "hd95_spacing_zyx_mm": [6.0, 0.35, 0.35],
+            },
+            "per_subject": {mode: records for mode, records in modes.items()},
+            "aggregate": aggregate,
+        }
+        with args.metrics_out.open("w") as f:
+            json.dump(out, f, indent=2)
+        print(f"[eval] wrote {args.metrics_out}")
 
 
 if __name__ == "__main__":

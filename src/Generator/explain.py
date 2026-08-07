@@ -592,12 +592,12 @@ def plot_explanation_figure(
         tests.append((
             "TEST 5 — SPADE γ Magnitude (1b SPADE only)",
             "Magnitude of the SPADE γ modulation at 6 decoder modules (deepest → shallowest, left → right). "
-            "Black/dark purple = no modulation, bright orange/white = strong modulation. "
+            "Dark purple/blue = no modulation, bright yellow/green = strong modulation. "
             "Interpretive reading: bright IN ORGAN REGIONS = SPADE is using its per-organ conditioning capacity. "
             "Bright ONLY along the body silhouette = SPADE is encoding inside/outside body only "
             "(information already given by the body_other and outside_body channels — the SPADE-specific "
             "advantage is not being exploited).",
-            "magma", "|γ| (normalized per panel)",
+            "viridis", "|γ| (normalized per panel)",
         ))
 
     n_tests = len(tests)
@@ -771,7 +771,7 @@ def plot_explanation_figure(
                     short = "…" + short[-22:]
                 panels.append((
                     f"|γ| {short}",
-                    heat, "magma", robust_vmax(heat), None,
+                    heat, "viridis", robust_vmax(heat), None,
                 ))
             while len(panels) < n_cols:
                 panels.append(("", None, None, None, None))

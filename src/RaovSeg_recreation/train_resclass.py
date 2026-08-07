@@ -72,18 +72,20 @@ class SliceDataset(Dataset):
         return img_tensor, torch.tensor(label, dtype=torch.float32)
 
 
-def load_slices(processed_dir: Path, subjects: list[str] | None = None):
+def load_slices(processed_dir: Path, subjects: list[str] | None = None,
+                target: str = "ov"):
     all_slices: list[np.ndarray] = []
     all_labels: list[int] = []
+    label_file = f"{target}_label.npy"
     candidates = ([processed_dir / sid for sid in subjects] if subjects is not None
                   else [d for d in sorted(processed_dir.iterdir()) if d.is_dir()])
     for subj_dir in candidates:
         if not subj_dir.is_dir():
             continue
         img_path = subj_dir / "image.npy"
-        lbl_path = subj_dir / "ov_label.npy"
+        lbl_path = subj_dir / label_file
         if not img_path.exists() or not lbl_path.exists():
-            print(f"  Skip {subj_dir.name}: missing image or label")
+            print(f"  Skip {subj_dir.name}: missing image or {label_file}")
             continue
         img = np.load(img_path)
         lbl = np.load(lbl_path)
@@ -202,7 +204,12 @@ def main():
                              "and DataLoader shuffle. Default 42 reproduces the original "
                              "baseline; multi-seed runs (e.g. for augmentation experiments) "
                              "pass different values.")
+    parser.add_argument("--target", type=str, default="ov",
+                        help="Target organ label channel: ov | ut | em | cy. "
+                             "Uses <target>_label.npy in each subject dir and "
+                             "saves the checkpoint as resclass_best_<target>.pth.")
     args = parser.parse_args()
+    ckpt_name = f"resclass_best_{args.target}.pth"
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -219,10 +226,12 @@ def main():
     print(f"Train subjects ({len(train_subjects)}): {train_subjects}")
     print(f"Val subjects ({len(val_subjects)}): {val_subjects}")
 
+    print(f"Target: {args.target} (label file: {args.target}_label.npy, "
+          f"checkpoint: {ckpt_name})")
     print("\nLoading train slices...")
-    train_slices, train_labels = load_slices(args.data_dir, train_subjects)
+    train_slices, train_labels = load_slices(args.data_dir, train_subjects, target=args.target)
     print("Loading val slices...")
-    val_slices, val_labels = load_slices(args.data_dir, val_subjects)
+    val_slices, val_labels = load_slices(args.data_dir, val_subjects, target=args.target)
 
     n_pos_train = int(np.sum(train_labels == 1))
     n_neg_train = int(np.sum(train_labels == 0))
@@ -261,7 +270,7 @@ def main():
             best_val_f1 = val_f1
             best_epoch = epoch
             epochs_without_improvement = 0
-            torch.save(model.state_dict(), args.output_dir / "resclass_best.pth")
+            torch.save(model.state_dict(), args.output_dir / ckpt_name)
             print(f"  -> Saved best (val_f1={val_f1:.3f})")
         else:
             epochs_without_improvement += 1
@@ -272,7 +281,7 @@ def main():
 
     print(f"\nBest validation F1: {best_val_f1:.3f} (epoch {best_epoch})")
     print(f"Trained for {epoch} epochs total")
-    print(f"Model saved to: {args.output_dir / 'resclass_best.pth'}")
+    print(f"Model saved to: {args.output_dir / ckpt_name}")
 
 
 if __name__ == "__main__":

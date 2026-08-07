@@ -206,21 +206,28 @@ def main():
     real0 = real_subjects[0]
     variant_order = ["real"] + list(synth_loaded.keys())
 
-    # Visual grid — top n_visual_rows rows
+    # Visual grid — top n_visual_rows rows.
+    # Use the REAL subject's chosen slices for EVERY variant so rows compare
+    # like-for-like z-slices. Synth volumes with different Z depth get their
+    # index clamped to a valid range; a trailing '*' on the printed z label
+    # flags when clamping happened.
+    ref_slices = real0["slices"]
     for r in range(n_visual_rows):
+        z_ref = ref_slices[r] if r < len(ref_slices) else 0
         for c, vname in enumerate(variant_order):
             ax = axes[r, c]
             if vname == "real":
-                z = real0["slices"][r] if r < len(real0["slices"]) else 0
-                _plot_grid(ax, real0["img"], real0["mask"], z,
-                           f"real {real0['subj']}  z={z}" if r == 0
-                           else f"z={z}")
+                _plot_grid(ax, real0["img"], real0["mask"], z_ref,
+                           f"real {real0['subj']}  z={z_ref}" if r == 0
+                           else f"z={z_ref}")
             else:
                 v = synth_loaded[vname]
-                z = v["slices"][r] if r < len(v["slices"]) else 0
-                _plot_grid(ax, v["img"], v["mask"], z,
-                           f"{vname}  {v['subj']}  z={z}" if r == 0
-                           else f"z={z}")
+                z_v = min(int(z_ref), v["img"].shape[0] - 1)
+                clamped = z_v != z_ref
+                z_label = f"z={z_v}{'*' if clamped else ''}"
+                _plot_grid(ax, v["img"], v["mask"], z_v,
+                           f"{vname}  {v['subj']}  {z_label}" if r == 0
+                           else z_label)
 
     # ------------------- Histograms -------------------
     # Row: overall body-region intensity (compare shapes across variants)

@@ -113,7 +113,7 @@ BAND_COLOR = "#2CA02C"
 
 RC = {
     "figure.dpi": 120,
-    "savefig.dpi": 300,
+    "savefig.dpi": 150,          # MRI-panel figures: 150 dpi is ample at ~6in wide, keeps files small
     "savefig.bbox": "tight",
     "font.size": 11,
     "axes.titlesize": 12,
@@ -204,31 +204,43 @@ def _pool_body(g: Group) -> np.ndarray:
 
 
 def fig_overlay(groups: list[Group], n_cols: int, out_path: Path) -> None:
+    # Row = variant (labelled on the left margin), column = subject.
     n_rows = len(groups)
-    fig, axes = plt.subplots(n_rows, n_cols,
-                             figsize=(2.7 * n_cols, 2.75 * n_rows))
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(2.7 * n_cols + 1.0, 2.8 * n_rows + 0.4),
+        gridspec_kw=dict(wspace=0.05, hspace=0.08, left=0.11, right=0.9,
+                         top=0.9, bottom=0.02))
     axes = np.atleast_2d(axes)
     if axes.shape[0] == 1 and n_rows != 1:
         axes = axes.T
+    im = None
     for r, g in enumerate(groups):
+        col = REAL_COLOR if g.is_real else g.color
+        axes[r, 0].annotate(g.label, xy=(-0.14, 0.5), xycoords="axes fraction",
+                            ha="right", va="center", rotation=90,
+                            fontsize=11.5, fontweight="bold", color=col)
         for c in range(n_cols):
             ax = axes[r, c]
             ax.set_xticks([]); ax.set_yticks([]); ax.grid(False)
             for s in ax.spines.values():
                 s.set_visible(False)
             if c >= len(g.loaded):
-                ax.axis("off")
-                continue
-            entry = g.loaded[c]
-            z = entry.slice_idxs[0]
-            ax.imshow(entry.img[z], cmap="gray", vmin=0, vmax=1)
-            if entry.mask[z].any():
-                ax.contour(entry.mask[z], levels=[0.5], colors="red", linewidths=1.0)
-            ax.set_title(f"{g.label} — {entry.subj} (z={z})", fontsize=8.5,
-                         color=(REAL_COLOR if g.is_real else g.color))
+                ax.axis("off"); continue
+            e = g.loaded[c]
+            z = e.slice_idxs[0]
+            im = ax.imshow(e.img[z], cmap="gray", vmin=0, vmax=1, aspect="equal")
+            if e.mask[z].any():
+                ax.contour(e.mask[z], levels=[0.5], colors="red", linewidths=1.0)
+            if r == 0:
+                ax.set_title(f"{e.subj}  (z={z})", fontsize=10)
+    # shared colorbar for the [0, 1] normalised scale
+    if im is not None:
+        cax = fig.add_axes([0.915, 0.18, 0.014, 0.56])
+        cb = fig.colorbar(im, cax=cax)
+        cb.set_label("normalised intensity [0, 1]", fontsize=9)
+        cb.ax.tick_params(labelsize=8)
     fig.suptitle("Real vs synth D2 T2FS — ovary contoured in red",
-                 fontsize=12.5, fontweight="bold", y=0.998)
-    fig.tight_layout(rect=[0, 0, 1, 0.98])
+                 fontsize=13, fontweight="bold", y=0.965)
     fig.savefig(out_path)
     plt.close(fig)
     print(f"[saved] {out_path}")
@@ -263,10 +275,8 @@ def fig_body_hist(groups: list[Group], out_path: Path) -> None:
 def fig_ovary_hist(groups: list[Group], out_path: Path,
                    summary_rows: list[dict]) -> None:
     fig, ax = plt.subplots(figsize=(8.0, 4.6))
-    ax.axvspan(O1, O2, alpha=0.16, color=BAND_COLOR,
-               label=f"enhancement window [{O1}, {O2}]")
-    ax.axvline(DEFAULT_OVARY_TARGET, ls="--", color="darkgreen", lw=1.2,
-               label=f"Path B target t = {DEFAULT_OVARY_TARGET}")
+    ax.axvspan(O1, O2, alpha=0.18, color=BAND_COLOR)          # band, no legend entry
+    ax.axvline(DEFAULT_OVARY_TARGET, ls="--", color="darkgreen", lw=1.2)
     for g in groups:
         pool = _pool_ovary(g)
         if pool.size == 0:
@@ -277,11 +287,18 @@ def fig_ovary_hist(groups: list[Group], out_path: Path,
         ax.hist(pool, bins=60, range=(0, 1), density=True, histtype="stepfilled",
                 color=g.color, alpha=0.12)
         ax.axvline(pool.mean(), ls=":", color=g.color, lw=1.5)
-    ax.set_xlim(0, 1)
+    ax.set_xlim(0, 0.7)                                       # trim empty right tail
     ax.set_xlabel("Normalised intensity (post RAovSeg percentile clip + minmax)")
     ax.set_ylabel("Density")
     ax.set_title("Ovary-voxel intensity distribution — the mechanism figure")
-    ax.legend(loc="upper right", fontsize=8)
+    # inline band annotations (draw the eye to the band, not a legend corner)
+    ymax = ax.get_ylim()[1]
+    ax.text((O1 + O2) / 2, ymax * 0.99, "enhancement\nwindow\n[0.22, 0.30]",
+            ha="center", va="top", fontsize=8.5, color="darkgreen", fontweight="bold")
+    ax.annotate("Path B target 0.26", xy=(DEFAULT_OVARY_TARGET, ymax * 0.45),
+                xytext=(0.36, ymax * 0.60), fontsize=8.5, color="darkgreen",
+                arrowprops=dict(arrowstyle="->", color="darkgreen", lw=1.1))
+    ax.legend(loc="upper right", fontsize=8.5)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -345,6 +362,213 @@ def _parse_synth_dirs(args) -> list[tuple[str, Path]]:
     raise SystemExit("Provide either --synth-dir or --synth-dirs.")
 
 
+def fig_label_overlay(real_dir: Path, subj: str, out_path: Path) -> None:
+    """Real 6-channel label design on an actual D2 slice (replaces clipart)."""
+    import matplotlib.colors as mcolors
+    import matplotlib.patches as mpatches
+    T = _load_image(real_dir / subj / f"{subj}_T2FS.nii.gz")
+
+    def loadm(suf):
+        p = real_dir / subj / f"{subj}_{suf}.nii.gz"
+        return _load_mask(p, T.shape[0]) if p.exists() else np.zeros_like(T, np.uint8)
+
+    ut, ov, em = loadm("ut"), loadm("ov"), loadm("em")
+    zc = [k for k in range(T.shape[0]) if ov[k].sum() > 0]
+    z = zc[len(zc) // 2] if zc else T.shape[0] // 2
+    img, utm, ovm, emm = T[z], ut[z], ov[z], em[z]
+    cx = img.shape[1] // 2
+    ovL, ovR = ovm.copy(), ovm.copy()
+    ovL[:, cx:] = 0; ovR[:, :cx] = 0
+    # clean body mask: threshold -> close -> fill holes -> largest component
+    from scipy.ndimage import binary_closing, binary_fill_holes, label as cc_label
+    raw = binary_fill_holes(binary_closing(img > BODY_THRESHOLD, iterations=3))
+    lbl, n = cc_label(raw)
+    if n:
+        sizes = np.bincount(lbl.ravel()); sizes[0] = 0
+        body = (lbl == sizes.argmax()).astype(np.uint8)
+    else:
+        body = raw.astype(np.uint8)
+
+    lab = np.zeros_like(img, dtype=int)          # 0 outside_body
+    lab[body > 0] = 5                            # body_other
+    lab[utm > 0] = 1; lab[ovL > 0] = 2; lab[ovR > 0] = 3; lab[emm > 0] = 4
+    colors = ["#111111", "#F2C744", "#C44E52", "#4C72B0", "#2CA02C", "#C9CCD1"]
+    names = ["outside_body", "uterus", "ov_L", "ov_R", "em", "body_other"]
+    cmap = mcolors.ListedColormap(colors)
+
+    # 2x4: real slice, six per-channel binary-mask overlays, argmax map
+    order = [("Real D2 T2FS slice", None), (f"0 · {names[0]}", 0), (f"1 · {names[1]}", 1),
+             (f"2 · {names[2]}", 2), (f"3 · {names[3]}", 3), (f"4 · {names[4]}", 4),
+             (f"5 · {names[5]}", 5), ("argmax (one class / pixel)", "argmax")]
+    # Row-2 titles used to sit against row-1 image bottoms; add explicit
+    # hspace + taller figure so titles land clearly ABOVE their own images.
+    fig, axes = plt.subplots(2, 4, figsize=(13, 7.6),
+                             gridspec_kw={"hspace": 0.28, "wspace": 0.08})
+    for ax, (title, ch) in zip(axes.ravel(), order):
+        ax.set_xticks([]); ax.set_yticks([])
+        for s in ax.spines.values():
+            s.set_visible(False)
+        if ch is None:
+            ax.imshow(img, cmap="gray", vmin=0, vmax=1)
+        elif ch == "argmax":
+            ax.imshow(lab, cmap=cmap, vmin=0, vmax=5)
+        else:
+            ax.imshow(img, cmap="gray", vmin=0, vmax=1)
+            rgba = np.zeros((*img.shape, 4))
+            rgba[lab == ch] = mcolors.to_rgba(colors[ch], 0.6)
+            ax.imshow(rgba)
+            col = colors[ch] if ch != 0 else "#666666"
+            ax.set_title(title, fontsize=10, color=col, fontweight="bold", pad=6)
+            continue
+        ax.set_title(title, fontsize=10, fontweight="bold", pad=6)
+    fig.suptitle(f"Six-channel one-hot label design on a real subject ({subj}) — "
+                 "each channel is a binary mask; the argmax shows every pixel in exactly one class",
+                 fontsize=12, fontweight="bold", y=0.98)
+    # rect trimmed at top so suptitle doesn't collide with row-1 titles either
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    fig.savefig(out_path); plt.close(fig)
+    print(f"[saved] {out_path}")
+
+
+def _argmax_label(real_dir: Path, subj: str):
+    """Return (normalised slice, 6-channel argmax label, z) for a real subject."""
+    from scipy.ndimage import binary_closing, binary_fill_holes, label as cc_label
+    T = _load_image(real_dir / subj / f"{subj}_T2FS.nii.gz")
+
+    def loadm(suf):
+        p = real_dir / subj / f"{subj}_{suf}.nii.gz"
+        return _load_mask(p, T.shape[0]) if p.exists() else np.zeros_like(T, np.uint8)
+
+    ut, ov, em = loadm("ut"), loadm("ov"), loadm("em")
+    zc = [k for k in range(T.shape[0]) if ov[k].sum() > 0]
+    z = zc[len(zc) // 2] if zc else T.shape[0] // 2
+    img, utm, ovm, emm = T[z], ut[z], ov[z], em[z]
+    cx = img.shape[1] // 2
+    ovL, ovR = ovm.copy(), ovm.copy(); ovL[:, cx:] = 0; ovR[:, :cx] = 0
+    raw = binary_fill_holes(binary_closing(img > BODY_THRESHOLD, iterations=3))
+    lb, n = cc_label(raw)
+    if n:
+        sizes = np.bincount(lb.ravel()); sizes[0] = 0
+        body = (lb == sizes.argmax()).astype(np.uint8)
+    else:
+        body = raw.astype(np.uint8)
+    lab = np.zeros_like(img, dtype=int)
+    lab[body > 0] = 5
+    lab[utm > 0] = 1; lab[ovL > 0] = 2; lab[ovR > 0] = 3; lab[emm > 0] = 4
+    return img, lab, z
+
+
+def fig_failure_modes(real_dir: Path, out_path: Path) -> None:
+    """Ground-truth ovary on the two universal failures vs a success case."""
+    subs = [("D2-016", 0.479, "success"), ("D2-005", 0.003, "failure"),
+            ("D2-023", 0.062, "failure")]
+    fig, axes = plt.subplots(1, 3, figsize=(11, 4.3))
+    for ax, (s, dsc, tag) in zip(axes, subs):
+        T = _load_image(real_dir / s / f"{s}_T2FS.nii.gz")
+        ov = _load_mask(real_dir / s / f"{s}_ov.nii.gz", T.shape[0])
+        zc = [k for k in range(T.shape[0]) if ov[k].sum() > 0]
+        z = zc[len(zc) // 2] if zc else T.shape[0] // 2
+        ax.imshow(T[z], cmap="gray", vmin=0, vmax=1)
+        if ov[z].any():
+            ax.contour(ov[z], levels=[0.5], colors="red", linewidths=1.5)
+        col = "#2CA02C" if tag == "success" else "#C44E52"
+        ax.set_title(f"{s} — DSC {dsc:.3f} ({tag})", fontsize=11.5, color=col, fontweight="bold")
+        ax.set_xticks([]); ax.set_yticks([])
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+    fig.suptitle("Per-subject difficulty — ground-truth ovary (red) on the two universal failures vs a success",
+                 fontsize=12, fontweight="bold", y=1.0)
+    fig.text(0.5, 0.02, "D2-005 & D2-023: small, low-contrast ovaries near the pelvic sidewall with atypical "
+             "intensity, so RAovSeg's brightness heuristic misses them (DSC ≈ 0). "
+             "D2-016: bright, central, large — easy.", ha="center", fontsize=9, color="#333333")
+    fig.tight_layout(rect=[0, 0.06, 1, 0.94])
+    fig.savefig(out_path); plt.close(fig)
+    print(f"[saved] {out_path}")
+
+
+def fig_preprocess_progression(real_dir: Path, synth_dir: Path, out_path: Path) -> None:
+    """v1 -> v2 -> v3 preprocessing fixes applied to one synthetic slice."""
+    from scipy.ndimage import binary_closing, binary_fill_holes, label as cc_label
+    S = _load_image(synth_dir / "D2-900" / "D2-900_T2FS.nii.gz")
+    sov = _load_mask(synth_dir / "D2-900" / "D2-900_ov.nii.gz", S.shape[0])
+    R = _load_image(real_dir / "D2-016" / "D2-016_T2FS.nii.gz")
+    zc = [k for k in range(S.shape[0]) if sov[k].sum() > 0]
+    z = zc[len(zc) // 2] if zc else S.shape[0] // 2
+    v1 = S[z].copy(); ovm = sov[z].astype(bool)
+    raw = binary_fill_holes(binary_closing(v1 > BODY_THRESHOLD, iterations=3))
+    lb, n = cc_label(raw)
+    if n:
+        sizes = np.bincount(lb.ravel()); sizes[0] = 0; body = (lb == sizes.argmax())
+    else:
+        body = raw
+    # v2: zero outside-body + rank-based histogram match to a real body distribution
+    v2 = v1.copy(); v2[~body] = 0
+    rbody = R[R > BODY_THRESHOLD]
+    src = v2[body]
+    ranks = np.empty(len(src)); ranks[np.argsort(src)] = np.arange(len(src))
+    v2[body] = np.quantile(rbody, ranks / max(len(src) - 1, 1))
+    v2 = np.clip(v2, 0, 1)
+    # v3: Path B — shift ovary voxels so their mean lands at 0.26
+    v3 = v2.copy()
+    if ovm.sum() > 0:
+        v3[ovm] = np.clip(v3[ovm] + (0.26 - v3[ovm].mean()), 0, 1)
+
+    panels = [("v1: raw synth\n(no fixes)", v1),
+              ("v2: + body mask\n+ histogram match", v2),
+              ("v3: + Path B\novary rescale (t = 0.26)", v3)]
+    fig, axes = plt.subplots(1, 3, figsize=(11, 4.4))
+    for ax, (t, im) in zip(axes, panels):
+        ax.imshow(im, cmap="gray", vmin=0, vmax=1)
+        if ovm.any():
+            ax.contour(ovm, levels=[0.5], colors="red", linewidths=1.3)
+        ax.set_title(t, fontsize=10.5); ax.set_xticks([]); ax.set_yticks([])
+        for s in ax.spines.values():
+            s.set_visible(False)
+        if ovm.any():
+            ax.text(0.5, -0.06, f"ovary mean = {im[ovm].mean():.2f}", transform=ax.transAxes,
+                    ha="center", fontsize=9, color="#C44E52", fontweight="bold")
+    fig.suptitle("Effect of each preprocessing fix on one synthetic slice (D2-900) — ovary in red; "
+                 "Path B moves the ovary mean into the [0.22, 0.30] enhancement window",
+                 fontsize=10.5, fontweight="bold", y=1.0)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.93])
+    fig.savefig(out_path); plt.close(fig)
+    print(f"[saved] {out_path}")
+
+
+def fig_pipeline_stages(real_dir: Path, synth_dir: Path, out_path: Path) -> None:
+    """Actual data at key pipeline stages (companion to the pipeline schematic)."""
+    import matplotlib.colors as mcolors
+    colors = ["#111111", "#F2C744", "#C44E52", "#4C72B0", "#2CA02C", "#C9CCD1"]
+    cmap = mcolors.ListedColormap(colors)
+    img, lab, z = _argmax_label(real_dir, "D2-016")
+    _T = _load_image(real_dir / "D2-016" / "D2-016_T2FS.nii.gz")
+    ovz = _load_mask(real_dir / "D2-016" / "D2-016_ov.nii.gz", _T.shape[0])[z]
+    S = _load_image(synth_dir / "D2-900" / "D2-900_T2FS.nii.gz")
+    sov = _load_mask(synth_dir / "D2-900" / "D2-900_ov.nii.gz", S.shape[0])
+    szc = [k for k in range(S.shape[0]) if sov[k].sum() > 0]
+    sz = szc[len(szc) // 2] if szc else S.shape[0] // 2
+
+    fig, axes = plt.subplots(1, 4, figsize=(13, 3.9))
+    titles = ["D2 real T2FS\n(input)", "6-channel label\n(conditioning)",
+              "Synthetic slice\n(generator output)", "Segmentation target\n(ovary GT, red)"]
+    axes[0].imshow(img, cmap="gray", vmin=0, vmax=1)
+    axes[1].imshow(lab, cmap=cmap, vmin=0, vmax=5)
+    axes[2].imshow(S[sz], cmap="gray", vmin=0, vmax=1)
+    axes[3].imshow(img, cmap="gray", vmin=0, vmax=1)
+    if ovz.any():
+        axes[3].contour(ovz, levels=[0.5], colors="red", linewidths=1.5)
+    for ax, t in zip(axes, titles):
+        ax.set_title(t, fontsize=10.5); ax.set_xticks([]); ax.set_yticks([])
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+    for i in range(3):
+        fig.text(0.045 + 0.25 * (i + 1) - 0.005, 0.5, "→", fontsize=18, ha="center", va="center", color="#666")
+    fig.suptitle("Actual data at key pipeline stages", fontsize=12.5, fontweight="bold", y=1.0)
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    fig.savefig(out_path); plt.close(fig)
+    print(f"[saved] {out_path}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--real-dir", type=Path, required=True)
@@ -400,6 +624,28 @@ def main() -> None:
     fig_body_hist(groups, args.out_dir / "fig_mech_body_hist.png")
     fig_ovary_hist(groups, args.out_dir / "fig_mech_ovary_hist.png", summary_rows)
     _print_and_save_table(summary_rows, args.out_dir / "mech_ovary_intensity_table.csv")
+
+    # real-anatomy 6-channel label figure (replaces the clipart version)
+    for cand in ("D2-072", "D2-040", "D2-008", "D2-009", "D2-078"):
+        try:
+            fig_label_overlay(args.real_dir, cand, args.out_dir / "fig_label_channels.png")
+            break
+        except Exception as e:
+            print(f"  label overlay {cand} failed: {type(e).__name__}: {e}")
+    try:
+        fig_failure_modes(args.real_dir, args.out_dir / "fig_failure_modes.png")
+    except Exception as e:
+        print(f"  failure-modes failed: {type(e).__name__}: {e}")
+    try:
+        fig_pipeline_stages(args.real_dir, Path("exp1c_spade_samples"),
+                            args.out_dir / "fig_pipeline_stages.png")
+    except Exception as e:
+        print(f"  pipeline-stages failed: {type(e).__name__}: {e}")
+    try:
+        fig_preprocess_progression(args.real_dir, Path("exp1c_spade_samples"),
+                                   args.out_dir / "fig_preprocess_progression.png")
+    except Exception as e:
+        print(f"  preprocess-progression failed: {type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":

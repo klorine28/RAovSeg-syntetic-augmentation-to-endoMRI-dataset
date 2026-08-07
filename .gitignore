@@ -54,3 +54,14 @@ exp2_lam50_samples_volumes/
 
 # --- Personal / unreviewed ---
 email_draft.md
+
+# --- Dissertation Word docs (kept local; .md draft is tracked) ---
+*.docx
+
+# --- Local HPC pull cache (regeneratable from HPC) ---
+hpc_pulled/
+
+# --- Experimental figure dirs (exploratory; not for publication) ---
+figures_tier1/
+figures_v3_intensity_dial/
+figures_v3_phases/

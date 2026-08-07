@@ -45,9 +45,36 @@ from pathlib import Path
 import numpy as np
 import SimpleITK as sitk
 import torch
+import torch.nn.functional as F
 import yaml
+from scipy.ndimage import gaussian_filter1d
 
 from .model import build_inference_scheduler, build_model_from_cfg
+
+
+def _gaussian_kernel_2d(sigma_pixels: float, device: torch.device, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    """Build a normalised 2D Gaussian kernel for a torch.nn.functional.conv2d call.
+
+    Kernel size is 2 * ceil(3 sigma) + 1 — enough to capture ~99.7% of the mass.
+    Returned shape: (1, 1, k, k).
+    """
+    if sigma_pixels <= 0:
+        raise ValueError("sigma_pixels must be > 0 to build a Gaussian kernel")
+    radius = int(math.ceil(3.0 * sigma_pixels))
+    coords = torch.arange(-radius, radius + 1, device=device, dtype=dtype)
+    g1 = torch.exp(-(coords ** 2) / (2.0 * sigma_pixels ** 2))
+    g1 = g1 / g1.sum()
+    g2 = g1.unsqueeze(0) * g1.unsqueeze(1)
+    return g2.unsqueeze(0).unsqueeze(0)  # (1, 1, k, k)
+
+
+def _gaussian_lowpass_2d(x: torch.Tensor, sigma_pixels: float) -> torch.Tensor:
+    """Apply a 2D Gaussian lowpass to a (B, C, H, W) tensor. Reflect padding."""
+    if sigma_pixels <= 0:
+        return x
+    k = _gaussian_kernel_2d(sigma_pixels, x.device, x.dtype)
+    r = k.shape[-1] // 2
+    return F.conv2d(F.pad(x, (r, r, r, r), mode="reflect"), k)
 
 
 def _load_label_nifti(label_path: Path, num_channels: int) -> np.ndarray:
@@ -69,6 +96,7 @@ def _load_label_nifti(label_path: Path, num_channels: int) -> np.ndarray:
 def sample_volume_iscs(
     model, label_zchw: torch.Tensor, scheduler, device: torch.device,
     guidance_scale: float, iscs_alpha: float, noise_seed: int,
+    iscs_lowpass_sigma: float = 0.0,
 ) -> torch.Tensor:
     """ISCS-coherent slice-by-slice DDIM sampling for an entire volume.
 
@@ -77,6 +105,14 @@ def sample_volume_iscs(
         iscs_alpha: ISCS coherence factor in [0, 1]. 0 = fully independent slices,
                     1 = fully shared noise (all slices identical given same label).
                     0.8 is the paper default.
+        iscs_lowpass_sigma: Gaussian lowpass std (in pixels) applied to the
+                    shared noise ONLY. 0 = original single-scale ISCS
+                    (default). > 0 = multi-scale ISCS — α applies to the
+                    low-frequency (structural) component only; high-frequency
+                    (texture) is always per-slice-independent. Independent
+                    noise is variance-corrected so the combined initial
+                    latent still has unit variance in expectation. Typical
+                    values: 2-8 pixels.
 
     Returns:
         (Z, 1, H, W) synthetic image volume on CPU, values in [-1, 1].
@@ -90,6 +126,15 @@ def sample_volume_iscs(
     alpha = float(iscs_alpha)
     coeff_shared = alpha
     coeff_indep = math.sqrt(max(0.0, 1.0 - alpha * alpha))
+
+    # Multi-scale ISCS: replace shared noise with its lowpass so the shared
+    # component carries only structural (low-frequency) content. Rescale to
+    # preserve unit variance in the shared component (lowpass reduces variance
+    # by the sum-of-squared-kernel factor).
+    if iscs_lowpass_sigma > 0.0:
+        eps_shared_lp = _gaussian_lowpass_2d(eps_shared, iscs_lowpass_sigma)
+        # Empirical variance restoration so the initial latent stays ~N(0, 1)
+        eps_shared = eps_shared_lp / (eps_shared_lp.std().clamp_min(1e-6))
 
     use_cfg = guidance_scale != 1.0
 
@@ -350,6 +395,16 @@ def main():
                         help="Prefix for synth subject IDs. Combined with a 2-digit index → D2-901, D2-902, …")
     parser.add_argument("--iscs-alpha", type=float, default=0.8,
                         help="ISCS coherence factor in [0,1] (default 0.8 per paper)")
+    parser.add_argument("--iscs-lowpass-sigma", type=float, default=0.0,
+                        help="Gaussian lowpass sigma (pixels) on shared noise. "
+                             "0 = single-scale ISCS (default). >0 = multi-scale ISCS "
+                             "where alpha applies to structural (low-freq) noise only; "
+                             "texture (high-freq) is per-slice independent. Typical: 2-8.")
+    parser.add_argument("--z-smooth-sigma", type=float, default=0.0,
+                        help="Post-hoc Gaussian smoothing sigma (in units of slices) "
+                             "applied along z after DDIM sampling but before all other "
+                             "post-processing. 0 = no smoothing (default). Typical: "
+                             "0.3-0.8 for light coherence, up to 1.5 for heavy.")
     parser.add_argument("--noise-seed", type=int, default=0,
                         help="RNG seed for the shared noise base + per-slice noise")
     parser.add_argument("--guidance-scale", type=float, default=None,
@@ -397,7 +452,9 @@ def main():
         else float(cfg["sampling"].get("guidance_scale", 1.0))
     )
     print(f"[assemble] guidance={guidance}, steps={num_inference_steps}, "
-          f"iscs_alpha={args.iscs_alpha}")
+          f"iscs_alpha={args.iscs_alpha}, "
+          f"iscs_lowpass_sigma={args.iscs_lowpass_sigma}, "
+          f"z_smooth_sigma={args.z_smooth_sigma}")
 
     # --- Output ---
     out_dir = Path(args.out_dir)
@@ -447,7 +504,16 @@ def main():
             model, label_zchw, scheduler, device,
             guidance_scale=guidance, iscs_alpha=args.iscs_alpha,
             noise_seed=int(args.noise_seed),
+            iscs_lowpass_sigma=float(args.iscs_lowpass_sigma),
         )
+
+        # Post-hoc z-Gaussian smoothing (softens residual inter-slice jitter).
+        # Applied on the (Z, 1, H, W) tensor in [-1, 1] before all other
+        # post-processing so downstream steps see the smoothed volume.
+        if args.z_smooth_sigma > 0.0:
+            arr = synth_zchw.numpy()  # (Z, 1, H, W)
+            arr = gaussian_filter1d(arr, sigma=float(args.z_smooth_sigma), axis=0, mode="reflect")
+            synth_zchw = torch.from_numpy(arr).clamp(-1.0, 1.0)
 
         # Locate raw real subject (if fixes are enabled)
         raw_real_path = None
@@ -477,6 +543,8 @@ def main():
             "source_subject_id": src_subj,
             "z_slices": int(Z),
             "iscs_alpha": float(args.iscs_alpha),
+            "iscs_lowpass_sigma": float(args.iscs_lowpass_sigma),
+            "z_smooth_sigma": float(args.z_smooth_sigma),
             "noise_seed": int(args.noise_seed),
             "guidance_scale": float(guidance),
             "num_inference_steps": int(num_inference_steps),

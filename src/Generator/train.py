@@ -384,6 +384,19 @@ def main(cfg_path: str):
 
     disc_iter_ref = [disc_iter] if disc_iter is not None else None
 
+    # --- Per-timestep loss buckets for calibration ---
+    # Diffusion training samples t uniformly, so the scalar L_diff averages
+    # across all noise levels. That hides whether the model has converged on
+    # low-t (near-clean, texture) vs high-t (near-noise, layout) equally.
+    # We track an EMA of the per-sample MSE bucketed into 10 timestep bins,
+    # log each bin as its own TensorBoard scalar, and print a compact row
+    # every N log intervals.
+    num_train_timesteps = int(cfg["diffusion"]["num_train_timesteps"])
+    NUM_T_BUCKETS = 10
+    bucket_ema = torch.zeros(NUM_T_BUCKETS, device=device)
+    bucket_seen = torch.zeros(NUM_T_BUCKETS, device=device)
+    BUCKET_EMA_DECAY = 0.99
+
     while step < total_steps:
         try:
             batch = next(data_iter)
@@ -410,7 +423,24 @@ def main(cfg_path: str):
 
         with torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
             eps_pred = model.predict_noise(x_t, lbl, t)
-            loss_diff = F.mse_loss(eps_pred.float(), noise.float())
+            # Per-sample MSE first, then batch-mean. Same scalar as before,
+            # but the per-sample tensor is needed for per-t calibration bucketing.
+            per_sample_mse = F.mse_loss(
+                eps_pred.float(), noise.float(), reduction="none"
+            ).mean(dim=[1, 2, 3])
+            loss_diff = per_sample_mse.mean()
+
+        # Update per-timestep calibration EMA (no grad, negligible cost).
+        with torch.no_grad():
+            bucket_ids = (t.float() * NUM_T_BUCKETS / num_train_timesteps).long().clamp_(0, NUM_T_BUCKETS - 1)
+            for i in range(b):
+                bi = int(bucket_ids[i])
+                v = per_sample_mse[i].detach()
+                if bucket_seen[bi] == 0:
+                    bucket_ema[bi] = v
+                    bucket_seen[bi] = 1
+                else:
+                    bucket_ema[bi] = BUCKET_EMA_DECAY * bucket_ema[bi] + (1 - BUCKET_EMA_DECAY) * v
 
         # --- Conditional PatchGAN block (Exp 1c only) --- #
         # Stays identity-no-op when discriminator is None (1a/1b paths).
@@ -430,8 +460,15 @@ def main(cfg_path: str):
             # regardless of whether the generator was given a dropped label
             # this step. We grab it from the batch again.
             lbl_d = batch["label"].to(device, non_blocking=True)
-            # Single-step x̂_0 estimate — see patchgan.estimate_x0_from_eps docstring
-            x0_hat = estimate_x0_from_eps(x_t, eps_pred.detach().float(),
+            # Single-step x̂_0 estimate — see patchgan.estimate_x0_from_eps docstring.
+            # NOTE: do NOT detach eps_pred here — we need the graph intact so
+            # that the G-adversarial path (line further down) can propagate
+            # gradient back through discriminator → x0_hat → eps_pred → G params.
+            # The D update below re-uses x0_hat.detach() to sever the graph for D.
+            # (Historical bug: this used to be eps_pred.detach(); that severed the
+            #  graph at creation time, so all λ ablation runs had zero adversarial
+            #  gradient into G. Confirmed by GRAD_DIAG showing |grad_lam·L_adv|=0.)
+            x0_hat = estimate_x0_from_eps(x_t, eps_pred.float(),
                                           train_sched, t)
 
             # D real path: single-cohort mode uses the same batch (x0);
@@ -471,6 +508,30 @@ def main(cfg_path: str):
 
         loss_g_total = loss_diff + lam * loss_g_adv
 
+        # --- GRAD_DIAG (opt-in gradient-contribution logging) --- #
+        # When env GRAD_DIAG=1, print separate gradient norms for L_diff and
+        # (lam * L_adv) at every log_every step where lam > 0. Answers the
+        # LAMBDA_ABLATION_COLLAPSE.md hypothesis 5.1 question ("is the
+        # adversarial gradient being AMP-underflowed?"). Cost is ~2× a
+        # normal step because we split gradients — only fired at log steps.
+        import os as _os
+        if _os.environ.get("GRAD_DIAG") == "1" and step % log_every == 0 and lam > 0.0:
+            from torch.autograd import grad as _autograd_grad
+            _params = [p for p in model.parameters() if p.requires_grad]
+            _g_diff = _autograd_grad(loss_diff,          _params,
+                                     retain_graph=True, allow_unused=True)
+            _g_adv  = _autograd_grad(lam * loss_g_adv,   _params,
+                                     retain_graph=True, allow_unused=True)
+            _n_diff = sum(g.detach().float().norm().item()**2
+                          for g in _g_diff if g is not None) ** 0.5
+            _n_adv  = sum(g.detach().float().norm().item()**2
+                          for g in _g_adv  if g is not None) ** 0.5
+            _ratio  = _n_adv / max(_n_diff, 1e-12)
+            print(f"[GRAD_DIAG] step={step} lam={lam:.4e} "
+                  f"|grad_L_diff|={_n_diff:.6e} "
+                  f"|grad_lam_L_adv|={_n_adv:.6e} ratio={_ratio:.6e}",
+                  flush=True)
+
         optim.zero_grad(set_to_none=True)
         loss_g_total.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -498,6 +559,20 @@ def main(cfg_path: str):
                       f"({it_per_s:.2f} it/s)")
                 writer.add_scalar("loss/L_diff", loss_diff.item(), step)
             writer.add_scalar("speed/it_per_s", it_per_s, step)
+
+            # Per-timestep calibration: one TB scalar per bucket, plus a
+            # compact console row every 10 log intervals so the reader can
+            # see the full curve without opening TensorBoard.
+            for _bi in range(NUM_T_BUCKETS):
+                if bucket_seen[_bi] > 0:
+                    writer.add_scalar(f"loss_by_t/bucket_{_bi:02d}",
+                                      bucket_ema[_bi].item(), step)
+            if step % (log_every * 10) == 0 and step > 0:
+                _row = " ".join(
+                    f"{bucket_ema[_bi].item():.3f}" if bucket_seen[_bi] > 0 else "  ---"
+                    for _bi in range(NUM_T_BUCKETS)
+                )
+                print(f"[t-calib] step={step:>6d} buckets t=[0,100)..[900,1000): {_row}")
 
         if step > 0 and step % sample_every == 0:
             # Use EMA model for sampling if available — cleaner samples.

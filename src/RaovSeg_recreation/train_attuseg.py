@@ -100,7 +100,8 @@ class SegmentationDataset(Dataset):
         return img_tensor, mask_tensor
 
 
-def load_ovary_slices(processed_dir: Path, subjects: list[str] | None = None):
+def load_target_slices(processed_dir: Path, subjects: list[str] | None = None,
+                       target: str = "ov"):
     """Load only slices that contain ovary annotations.
 
     If `subjects` is given, only those subject IDs are loaded.
@@ -117,7 +118,7 @@ def load_ovary_slices(processed_dir: Path, subjects: list[str] | None = None):
         if not subj_dir.is_dir():
             continue
         img_path = subj_dir / "image.npy"
-        lbl_path = subj_dir / "ov_label.npy"
+        lbl_path = subj_dir / f"{target}_label.npy"
 
         if not img_path.exists() or not lbl_path.exists():
             continue
@@ -217,7 +218,12 @@ def main():
                         help="Random seed for train/val split, model init, augmentation, "
                              "and DataLoader shuffle. Default 42 reproduces the original "
                              "baseline; multi-seed runs pass different values.")
+    parser.add_argument("--target", type=str, default="ov",
+                        help="Target organ label channel: ov | ut | em | cy. "
+                             "Uses <target>_label.npy in each subject dir and "
+                             "saves the checkpoint as attuseg_best_<target>.pth.")
     args = parser.parse_args()
+    ckpt_name = f"attuseg_best_{args.target}.pth"
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -235,11 +241,13 @@ def main():
     print(f"Train subjects ({len(train_subjects)}): {train_subjects}")
     print(f"Val subjects ({len(val_subjects)}): {val_subjects}")
 
-    print("\nLoading train ovary slices...")
-    train_slices, train_masks = load_ovary_slices(args.data_dir, train_subjects)
-    print("Loading val ovary slices...")
-    val_slices, val_masks = load_ovary_slices(args.data_dir, val_subjects)
-    print(f"Train ovary slices: {len(train_slices)} | Val ovary slices: {len(val_slices)}")
+    print(f"Target: {args.target} (label file: {args.target}_label.npy, "
+          f"checkpoint: {ckpt_name})")
+    print(f"\nLoading train {args.target} slices...")
+    train_slices, train_masks = load_target_slices(args.data_dir, train_subjects, target=args.target)
+    print(f"Loading val {args.target} slices...")
+    val_slices, val_masks = load_target_slices(args.data_dir, val_subjects, target=args.target)
+    print(f"Train {args.target} slices: {len(train_slices)} | Val {args.target} slices: {len(val_slices)}")
 
     train_ds = SegmentationDataset(train_slices, train_masks,
                                    augment=True, multiplier=AUGMENT_MULTIPLIER)
@@ -270,11 +278,11 @@ def main():
 
         if val_dice > best_val_dice:
             best_val_dice = val_dice
-            torch.save(model.state_dict(), args.output_dir / "attuseg_best.pth")
+            torch.save(model.state_dict(), args.output_dir / ckpt_name)
             print(f"  -> Saved best (val_dice={val_dice:.3f})")
 
     print(f"\nBest validation DSC: {best_val_dice:.3f}")
-    print(f"Model saved to: {args.output_dir / 'attuseg_best.pth'}")
+    print(f"Model saved to: {args.output_dir / ckpt_name}")
 
 
 if __name__ == "__main__":

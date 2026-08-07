@@ -112,9 +112,6 @@ def process_subject(subject_dir: Path, output_dir: Path, subject_id: str,
         print(f"  SKIP {subject_id}: no MRI sequence found")
         return
 
-    label_path = subject_dir / f"{subject_id}_ov.nii.gz"
-    has_label = label_path.exists()
-
     # Process image
     print(f"  Image: {img_path.name}"
           + ("  (enhancement SKIPPED)" if skip_enhancement else ""))
@@ -125,12 +122,21 @@ def process_subject(subject_dir: Path, output_dir: Path, subject_id: str,
     subj_out.mkdir(parents=True, exist_ok=True)
     np.save(subj_out / "image.npy", img_enhanced.astype(np.float32))
 
-    if has_label:
+    # Save every available organ label. Downstream scripts pick by --target.
+    # `ov_label.npy` is required by Liang's original pipeline; the others
+    # unlock parallel-target training (uterus, em, cy) without a re-preprocess.
+    emitted = []
+    for target, suffix in (("ov", "_ov"), ("ut", "_ut"), ("em", "_em"), ("cy", "_cy")):
+        label_path = subject_dir / f"{subject_id}{suffix}.nii.gz"
+        if not label_path.exists():
+            continue
         label_array = preprocess_label(label_path)
-        np.save(subj_out / "ov_label.npy", label_array.astype(np.int8))
-        print(f"  Label: {label_path.name} — {np.sum(label_array > 0)} positive voxels")
+        np.save(subj_out / f"{target}_label.npy", label_array.astype(np.int8))
+        emitted.append(f"{target}({int(np.sum(label_array > 0))} pos vox)")
+    if emitted:
+        print(f"  Labels: {', '.join(emitted)}")
     else:
-        print(f"  Label: none (no ovary annotation)")
+        print(f"  Labels: none")
 
     print(f"  Output shape: {img_enhanced.shape}")
 

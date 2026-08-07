@@ -1,0 +1,1878 @@
+[
+  {
+    "subject": "D2-000",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.781903742759595,
+        "centroid_drift_mm": 1.8211296352577844,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.6673018510247244,
+        "centroid_drift_mm": 6.882909255703213,
+        "n_slices_with_mask": 9
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.8144924732107466,
+        "centroid_drift_mm": 3.5926104242028964,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.03961743414402008,
+    "z_axis_TV_per_mm": 818.12646484375
+  },
+  {
+    "subject": "D2-001",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 1,
+        "adjacent_slice_mask_dice": 0.9124157844080847,
+        "centroid_drift_mm": 0.48274877518551873,
+        "n_slices_with_mask": 2
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 15,
+        "adjacent_slice_mask_dice": 0.8512157078037443,
+        "centroid_drift_mm": 2.357434798589028,
+        "n_slices_with_mask": 16
+      }
+    },
+    "adjacent_slice_L1": 0.05117322504520416,
+    "z_axis_TV_per_mm": 873.3564453125
+  },
+  {
+    "subject": "D2-002",
+    "n_slices": 40,
+    "voxel_spacing_xyz": [
+      0.6640625,
+      0.6640625,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 39,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7713072169303702,
+        "centroid_drift_mm": 5.909069108895936,
+        "n_slices_with_mask": 9
+      },
+      "cyst": {
+        "n_pairs": 39,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.8165900940534363,
+        "centroid_drift_mm": 1.650974859080915,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.058015208691358566,
+    "z_axis_TV_per_mm": 1425.78173828125
+  },
+  {
+    "subject": "D2-003",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7451734568287482,
+        "centroid_drift_mm": 1.8134312015519423,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.7541732610993424,
+        "centroid_drift_mm": 5.437803028653973,
+        "n_slices_with_mask": 7
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.8342008068031329,
+        "centroid_drift_mm": 1.1752562398035502,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.046649470925331116,
+    "z_axis_TV_per_mm": 963.342529296875
+  },
+  {
+    "subject": "D2-004",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.769577815216885,
+        "centroid_drift_mm": 3.829094561646424,
+        "n_slices_with_mask": 11
+      }
+    },
+    "adjacent_slice_L1": 0.047392476350069046,
+    "z_axis_TV_per_mm": 808.8317260742188
+  },
+  {
+    "subject": "D2-005",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7867969775123298,
+        "centroid_drift_mm": 2.582715773299095,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.7393243643861207,
+        "centroid_drift_mm": 7.51959057594586,
+        "n_slices_with_mask": 7
+      }
+    },
+    "adjacent_slice_L1": 0.04269808530807495,
+    "z_axis_TV_per_mm": 728.7139282226562
+  },
+  {
+    "subject": "D2-006",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.75,
+      0.75,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.8373125821566638,
+        "centroid_drift_mm": 3.2391660743591575,
+        "n_slices_with_mask": 8
+      },
+      "cyst": {
+        "n_pairs": 37,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7153602428280984,
+        "centroid_drift_mm": 5.133351278995906,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.03471529483795166,
+    "z_axis_TV_per_mm": 592.474365234375
+  },
+  {
+    "subject": "D2-007",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.7102272510528564,
+      0.7102272510528564,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7536581531883898,
+        "centroid_drift_mm": 2.6351232968259524,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7298527009164145,
+        "centroid_drift_mm": 5.342231653053721,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.0492987222969532,
+    "z_axis_TV_per_mm": 1018.0513305664062
+  },
+  {
+    "subject": "D2-008",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7414961474136347,
+        "centroid_drift_mm": 2.0482670149529403,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8389643874145332,
+        "centroid_drift_mm": 3.2332883112072266,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.03203925862908363,
+    "z_axis_TV_per_mm": 546.8033447265625
+  },
+  {
+    "subject": "D2-009",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.7102272510528564,
+      0.7102272510528564,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.6755015755291358,
+        "centroid_drift_mm": 2.9243027026289847,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7444670336223801,
+        "centroid_drift_mm": 5.857561446094356,
+        "n_slices_with_mask": 6
+      },
+      "endometrioma": {
+        "n_pairs": 33,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7688571501899188,
+        "centroid_drift_mm": 1.1337588987295577,
+        "n_slices_with_mask": 3
+      }
+    },
+    "adjacent_slice_L1": 0.0492987222969532,
+    "z_axis_TV_per_mm": 1018.0513305664062
+  },
+  {
+    "subject": "D2-010",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7108651775737238,
+        "centroid_drift_mm": 4.307104075610935,
+        "n_slices_with_mask": 9
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 11,
+        "adjacent_slice_mask_dice": 0.7664773598620074,
+        "centroid_drift_mm": 4.483009420984792,
+        "n_slices_with_mask": 12
+      }
+    },
+    "adjacent_slice_L1": 0.035508207976818085,
+    "z_axis_TV_per_mm": 733.2681274414062
+  },
+  {
+    "subject": "D2-011",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.6746856345122025,
+        "centroid_drift_mm": 3.028361508957606,
+        "n_slices_with_mask": 9
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8170570129508136,
+        "centroid_drift_mm": 2.427038885942463,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.057651814073324203,
+    "z_axis_TV_per_mm": 1190.5484619140625
+  },
+  {
+    "subject": "D2-012",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7901133938752412,
+        "centroid_drift_mm": 1.6833334182490933,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7764458927584317,
+        "centroid_drift_mm": 4.588796823783673,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.031022382900118828,
+    "z_axis_TV_per_mm": 640.6328735351562
+  },
+  {
+    "subject": "D2-013",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8529534892230721,
+        "centroid_drift_mm": 1.1471044370464294,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8113706131818207,
+        "centroid_drift_mm": 5.703383078174952,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.03809831663966179,
+    "z_axis_TV_per_mm": 650.2113037109375
+  },
+  {
+    "subject": "D2-014",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7572098793155423,
+        "centroid_drift_mm": 3.0706893892466147,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.8131506682295165,
+        "centroid_drift_mm": 4.969942286018858,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.052645616233348846,
+    "z_axis_TV_per_mm": 1087.1671142578125
+  },
+  {
+    "subject": "D2-015",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 1,
+        "adjacent_slice_mask_dice": 0.7696307852314093,
+        "centroid_drift_mm": 3.7848446320818314,
+        "n_slices_with_mask": 2
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.6708963459419243,
+        "centroid_drift_mm": 7.309139889687992,
+        "n_slices_with_mask": 7
+      }
+    },
+    "adjacent_slice_L1": 0.04811345785856247,
+    "z_axis_TV_per_mm": 1182.4361572265625
+  },
+  {
+    "subject": "D2-016",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.7102272510528564,
+      0.7102272510528564,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.8297494206826126,
+        "centroid_drift_mm": 2.446821213518074,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 12,
+        "adjacent_slice_mask_dice": 0.8152658373702969,
+        "centroid_drift_mm": 2.7986485209496474,
+        "n_slices_with_mask": 13
+      }
+    },
+    "adjacent_slice_L1": 0.036853350698947906,
+    "z_axis_TV_per_mm": 761.0462036132812
+  },
+  {
+    "subject": "D2-017",
+    "n_slices": 40,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 39,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7697546037442562,
+        "centroid_drift_mm": 2.1194788462366385,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 39,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.7820179958577037,
+        "centroid_drift_mm": 5.89418256446518,
+        "n_slices_with_mask": 7
+      }
+    },
+    "adjacent_slice_L1": 0.03146488219499588,
+    "z_axis_TV_per_mm": 773.281005859375
+  },
+  {
+    "subject": "D2-018",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.6265837833172996,
+        "centroid_drift_mm": 4.664495350006229,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 12,
+        "adjacent_slice_mask_dice": 0.8328241131644027,
+        "centroid_drift_mm": 2.2601986310034037,
+        "n_slices_with_mask": 13
+      }
+    },
+    "adjacent_slice_L1": 0.040398333221673965,
+    "z_axis_TV_per_mm": 834.2523803710938
+  },
+  {
+    "subject": "D2-019",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6960227489471436,
+      0.6960227489471436,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8140482661295243,
+        "centroid_drift_mm": 2.7586547730636357,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.8453106365549997,
+        "centroid_drift_mm": 4.271979786882526,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.0443267859518528,
+    "z_axis_TV_per_mm": 915.377685546875
+  },
+  {
+    "subject": "D2-020",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.7513622650839833,
+        "centroid_drift_mm": 1.9123039881340758,
+        "n_slices_with_mask": 8
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.8419802697155018,
+        "centroid_drift_mm": 3.646256680000245,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.05082888901233673,
+    "z_axis_TV_per_mm": 867.4797973632812
+  },
+  {
+    "subject": "D2-021",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.5434706749375386,
+        "centroid_drift_mm": 5.059664306949776,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8262964490007535,
+        "centroid_drift_mm": 5.012661671806654,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.03351473808288574,
+    "z_axis_TV_per_mm": 692.1016235351562
+  },
+  {
+    "subject": "D2-022",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.6870374685946536,
+        "centroid_drift_mm": 2.2913479013502953,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7205858616570395,
+        "centroid_drift_mm": 4.846229321857012,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.04326692223548889,
+    "z_axis_TV_per_mm": 893.4907836914062
+  },
+  {
+    "subject": "D2-023",
+    "n_slices": 39,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 38,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.530216301546506,
+        "centroid_drift_mm": 4.351576383454992,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 38,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.7442064189785149,
+        "centroid_drift_mm": 4.951476240263155,
+        "n_slices_with_mask": 11
+      }
+    },
+    "adjacent_slice_L1": 0.04797891899943352,
+    "z_axis_TV_per_mm": 1179.1300048828125
+  },
+  {
+    "subject": "D2-024",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7527469276681962,
+        "centroid_drift_mm": 1.5880448375774914,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7414033247479642,
+        "centroid_drift_mm": 4.754858213928744,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.05044286325573921,
+    "z_axis_TV_per_mm": 860.8915405273438
+  },
+  {
+    "subject": "D2-025",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.7102272510528564,
+      0.7102272510528564,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.6636948278486484,
+        "centroid_drift_mm": 4.071370672896555,
+        "n_slices_with_mask": 7
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7276813538048011,
+        "centroid_drift_mm": 7.078964211776613,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.046760931611061096,
+    "z_axis_TV_per_mm": 965.6444702148438
+  },
+  {
+    "subject": "D2-026",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.6174426807606374,
+        "centroid_drift_mm": 5.304821702844466,
+        "n_slices_with_mask": 6
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.80550684884068,
+        "centroid_drift_mm": 4.239514611239253,
+        "n_slices_with_mask": 11
+      }
+    },
+    "adjacent_slice_L1": 0.03872044384479523,
+    "z_axis_TV_per_mm": 799.6029663085938
+  },
+  {
+    "subject": "D2-027",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6380208134651184,
+      0.6380208134651184,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.6249724181933978,
+        "centroid_drift_mm": 2.137638957924055,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.6761823949239598,
+        "centroid_drift_mm": 6.218296052506477,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.03777436912059784,
+    "z_axis_TV_per_mm": 928.3427124023438
+  },
+  {
+    "subject": "D2-028",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7659234390948738,
+        "centroid_drift_mm": 2.6128701265703085,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 11,
+        "adjacent_slice_mask_dice": 0.7990132352164601,
+        "centroid_drift_mm": 3.30405231457609,
+        "n_slices_with_mask": 12
+      }
+    },
+    "adjacent_slice_L1": 0.04116057977080345,
+    "z_axis_TV_per_mm": 849.993408203125
+  },
+  {
+    "subject": "D2-029",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.7102272510528564,
+      0.7102272510528564,
+      6.000000476837158
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.8774899752544135,
+        "centroid_drift_mm": 0.7264601565522009,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7443307403255741,
+        "centroid_drift_mm": 5.460999690343601,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.060869086533784866,
+    "z_axis_TV_per_mm": 1256.987060546875
+  },
+  {
+    "subject": "D2-038",
+    "n_slices": 35,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 34,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7847484084253689,
+        "centroid_drift_mm": 2.527058132431392,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 34,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.7594115886974233,
+        "centroid_drift_mm": 6.240825704545944,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.06855551153421402,
+    "z_axis_TV_per_mm": 1170.0140380859375
+  },
+  {
+    "subject": "D2-039",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.7561899281105023,
+        "centroid_drift_mm": 8.138192704806801,
+        "n_slices_with_mask": 8
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7255454228457013,
+        "centroid_drift_mm": 1.828967816846853,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.057498082518577576,
+    "z_axis_TV_per_mm": 981.300537109375
+  },
+  {
+    "subject": "D2-040",
+    "n_slices": 33,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 32,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7995949857474605,
+        "centroid_drift_mm": 2.757691119802861,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 32,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8033301350245501,
+        "centroid_drift_mm": 3.0824093780571835,
+        "n_slices_with_mask": 10
+      },
+      "endometrioma": {
+        "n_pairs": 32,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.8303750360707285,
+        "centroid_drift_mm": 1.1856050062007946,
+        "n_slices_with_mask": 3
+      }
+    },
+    "adjacent_slice_L1": 0.03082697093486786,
+    "z_axis_TV_per_mm": 526.1137084960938
+  },
+  {
+    "subject": "D2-041",
+    "n_slices": 41,
+    "voxel_spacing_xyz": [
+      0.6696428656578064,
+      0.6696428656578064,
+      7.000000476837158
+    ],
+    "organs": {
+      "endometrioma": {
+        "n_pairs": 40,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.6602974100343711,
+        "centroid_drift_mm": 1.5733391114469737,
+        "n_slices_with_mask": 5
+      },
+      "cyst": {
+        "n_pairs": 40,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.7369977282762601,
+        "centroid_drift_mm": 4.082261310148469,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.036454565823078156,
+    "z_axis_TV_per_mm": 1045.2252197265625
+  },
+  {
+    "subject": "D2-042",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.6412633974565977,
+        "centroid_drift_mm": 4.105746870754381,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.7407825130375311,
+        "centroid_drift_mm": 3.486921742806839,
+        "n_slices_with_mask": 10
+      },
+      "cyst": {
+        "n_pairs": 33,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7340905764494293,
+        "centroid_drift_mm": 2.8336684184931236,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.06955505907535553,
+    "z_axis_TV_per_mm": 1436.3583984375
+  },
+  {
+    "subject": "D2-043",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7605124951535017,
+        "centroid_drift_mm": 2.0601687302582623,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.7782544391678436,
+        "centroid_drift_mm": 5.314030811914834,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.03299833834171295,
+    "z_axis_TV_per_mm": 681.4376831054688
+  },
+  {
+    "subject": "D2-044",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.686883764126613,
+        "centroid_drift_mm": 4.470681201296548,
+        "n_slices_with_mask": 7
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.7924406519164492,
+        "centroid_drift_mm": 3.038223782217863,
+        "n_slices_with_mask": 7
+      }
+    },
+    "adjacent_slice_L1": 0.051091041415929794,
+    "z_axis_TV_per_mm": 871.953857421875
+  },
+  {
+    "subject": "D2-045",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.5248644446849332,
+        "centroid_drift_mm": 6.037265125634339,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.8439414063010097,
+        "centroid_drift_mm": 3.3764274934853344,
+        "n_slices_with_mask": 7
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7759343772572121,
+        "centroid_drift_mm": 2.66944552709502,
+        "n_slices_with_mask": 3
+      }
+    },
+    "adjacent_slice_L1": 0.037005968391895294,
+    "z_axis_TV_per_mm": 631.5685424804688
+  },
+  {
+    "subject": "D2-046",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7503916688952695,
+        "centroid_drift_mm": 2.5660407870461266,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.06843897700309753,
+    "z_axis_TV_per_mm": 1168.025146484375
+  },
+  {
+    "subject": "D2-047",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6960227489471436,
+      0.6960227489471436,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.8108531277174371,
+        "centroid_drift_mm": 1.013795944706622,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8099359259686829,
+        "centroid_drift_mm": 2.811809418122593,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.04465627297759056,
+    "z_axis_TV_per_mm": 922.181884765625
+  },
+  {
+    "subject": "D2-048",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7812586983566141,
+        "centroid_drift_mm": 2.0565184365073548,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 12,
+        "adjacent_slice_mask_dice": 0.8395246758418095,
+        "centroid_drift_mm": 3.6140805965261955,
+        "n_slices_with_mask": 13
+      }
+    },
+    "adjacent_slice_L1": 0.04447989910840988,
+    "z_axis_TV_per_mm": 918.5396118164062
+  },
+  {
+    "subject": "D2-049",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.826651883760378,
+        "centroid_drift_mm": 2.6788645218539804,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.052326373755931854,
+    "z_axis_TV_per_mm": 1080.5745849609375
+  },
+  {
+    "subject": "D2-050",
+    "n_slices": 41,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 40,
+        "n_interior_pairs": 1,
+        "adjacent_slice_mask_dice": 0.7647058823529411,
+        "centroid_drift_mm": 2.414863842924551,
+        "n_slices_with_mask": 3
+      },
+      "uterus": {
+        "n_pairs": 40,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.8174556167338178,
+        "centroid_drift_mm": 3.621869780663231,
+        "n_slices_with_mask": 11
+      }
+    },
+    "adjacent_slice_L1": 0.036123182624578476,
+    "z_axis_TV_per_mm": 616.5023803710938
+  },
+  {
+    "subject": "D2-051",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 1,
+        "adjacent_slice_mask_dice": 0.7816563997262149,
+        "centroid_drift_mm": 3.6182860595413477,
+        "n_slices_with_mask": 2
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.7959965004810452,
+        "centroid_drift_mm": 3.384366980487643,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.04966836795210838,
+    "z_axis_TV_per_mm": 1220.6497802734375
+  },
+  {
+    "subject": "D2-052",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.6941213150371555,
+        "centroid_drift_mm": 2.948005824292318,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.03344651684165001,
+    "z_axis_TV_per_mm": 821.9815063476562
+  },
+  {
+    "subject": "D2-053",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6380208134651184,
+      0.6380208134651184,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 15,
+        "adjacent_slice_mask_dice": 0.8059179165125597,
+        "centroid_drift_mm": 3.4734523475573122,
+        "n_slices_with_mask": 16
+      }
+    },
+    "adjacent_slice_L1": 0.0604347363114357,
+    "z_axis_TV_per_mm": 1485.2437744140625
+  },
+  {
+    "subject": "D2-054",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8330735751695241,
+        "centroid_drift_mm": 1.34852501021765,
+        "n_slices_with_mask": 5
+      },
+      "endometrioma": {
+        "n_pairs": 33,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.8558082221173616,
+        "centroid_drift_mm": 2.1458429040252733,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.04027581587433815,
+    "z_axis_TV_per_mm": 687.3738403320312
+  },
+  {
+    "subject": "D2-055",
+    "n_slices": 37,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 36,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.6942642374660041,
+        "centroid_drift_mm": 3.045978807243273,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 36,
+        "n_interior_pairs": 11,
+        "adjacent_slice_mask_dice": 0.8533179381503314,
+        "centroid_drift_mm": 1.7883067394053604,
+        "n_slices_with_mask": 12
+      }
+    },
+    "adjacent_slice_L1": 0.03680051863193512,
+    "z_axis_TV_per_mm": 628.0621948242188
+  },
+  {
+    "subject": "D2-056",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8531898487868239,
+        "centroid_drift_mm": 1.1253968001386372,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.776392668038672,
+        "centroid_drift_mm": 4.34673232411917,
+        "n_slices_with_mask": 9
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.737787315854155,
+        "centroid_drift_mm": 1.6890466582264845,
+        "n_slices_with_mask": 5
+      }
+    },
+    "adjacent_slice_L1": 0.05080961436033249,
+    "z_axis_TV_per_mm": 1049.2523193359375
+  },
+  {
+    "subject": "D2-057",
+    "n_slices": 44,
+    "voxel_spacing_xyz": [
+      0.6770833134651184,
+      0.6770833134651184,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 43,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.8712752510753606,
+        "centroid_drift_mm": 1.4971163032589008,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.0457509346306324,
+    "z_axis_TV_per_mm": 1124.375
+  },
+  {
+    "subject": "D2-058",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7004180094013355,
+        "centroid_drift_mm": 3.318189373772153,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.7789148697211505,
+        "centroid_drift_mm": 4.568791893730331,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.04664791002869606,
+    "z_axis_TV_per_mm": 963.3104858398438
+  },
+  {
+    "subject": "D2-059",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.71875,
+      0.71875,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7770726982821691,
+        "centroid_drift_mm": 3.1781431182835895,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8116414497365342,
+        "centroid_drift_mm": 4.121393307632697,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.050971902906894684,
+    "z_axis_TV_per_mm": 869.9205932617188
+  },
+  {
+    "subject": "D2-060",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7325825289282144,
+        "centroid_drift_mm": 2.604190764472349,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.7648617360333938,
+        "centroid_drift_mm": 4.75288497250134,
+        "n_slices_with_mask": 6
+      }
+    },
+    "adjacent_slice_L1": 0.03892289847135544,
+    "z_axis_TV_per_mm": 803.78369140625
+  },
+  {
+    "subject": "D2-061",
+    "n_slices": 42,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 41,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.8185989582301908,
+        "centroid_drift_mm": 1.9713341472755355,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 41,
+        "n_interior_pairs": 14,
+        "adjacent_slice_mask_dice": 0.7956243388881957,
+        "centroid_drift_mm": 5.4102045969610995,
+        "n_slices_with_mask": 15
+      }
+    },
+    "adjacent_slice_L1": 0.04099103808403015,
+    "z_axis_TV_per_mm": 1007.3956909179688
+  },
+  {
+    "subject": "D2-062",
+    "n_slices": 37,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 36,
+        "n_interior_pairs": 14,
+        "adjacent_slice_mask_dice": 0.8616608682798574,
+        "centroid_drift_mm": 3.565711503739436,
+        "n_slices_with_mask": 15
+      }
+    },
+    "adjacent_slice_L1": 0.04653921350836754,
+    "z_axis_TV_per_mm": 794.2692260742188
+  },
+  {
+    "subject": "D2-064",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 6,
+        "adjacent_slice_mask_dice": 0.7704105351517905,
+        "centroid_drift_mm": 6.820041394529322,
+        "n_slices_with_mask": 7
+      }
+    },
+    "adjacent_slice_L1": 0.03554435446858406,
+    "z_axis_TV_per_mm": 606.6236572265625
+  },
+  {
+    "subject": "D2-065",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7954623118356379,
+        "centroid_drift_mm": 2.6205633546174436,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 37,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.819945086919975,
+        "centroid_drift_mm": 3.4196326633966465,
+        "n_slices_with_mask": 8
+      }
+    },
+    "adjacent_slice_L1": 0.051333677023649216,
+    "z_axis_TV_per_mm": 1060.0745849609375
+  },
+  {
+    "subject": "D2-066",
+    "n_slices": 40,
+    "voxel_spacing_xyz": [
+      0.6510416865348816,
+      0.6510416865348816,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 39,
+        "n_interior_pairs": 14,
+        "adjacent_slice_mask_dice": 0.8116488253827604,
+        "centroid_drift_mm": 3.497811208569538,
+        "n_slices_with_mask": 15
+      }
+    },
+    "adjacent_slice_L1": 0.05169694498181343,
+    "z_axis_TV_per_mm": 1270.5042724609375
+  },
+  {
+    "subject": "D2-067",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.8269146127945937,
+        "centroid_drift_mm": 3.474679698010033,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.035280466079711914,
+    "z_axis_TV_per_mm": 602.1199340820312
+  },
+  {
+    "subject": "D2-070",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.6498308413169666,
+        "centroid_drift_mm": 5.792399356293846,
+        "n_slices_with_mask": 5
+      },
+      "endometrioma": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.818958691316528,
+        "centroid_drift_mm": 2.682516246021199,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.045244310051202774,
+    "z_axis_TV_per_mm": 934.3251342773438
+  },
+  {
+    "subject": "D2-071",
+    "n_slices": 44,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "endometrioma": {
+        "n_pairs": 43,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.8418209580365126,
+        "centroid_drift_mm": 3.0100609460208476,
+        "n_slices_with_mask": 9
+      }
+    },
+    "adjacent_slice_L1": 0.05434385687112808,
+    "z_axis_TV_per_mm": 927.4684448242188
+  },
+  {
+    "subject": "D2-072",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8726718151212794,
+        "centroid_drift_mm": 1.698776683782348,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 16,
+        "adjacent_slice_mask_dice": 0.8091274561747602,
+        "centroid_drift_mm": 4.798585204982711,
+        "n_slices_with_mask": 17
+      },
+      "endometrioma": {
+        "n_pairs": 35,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7932626733747985,
+        "centroid_drift_mm": 1.7484994048531048,
+        "n_slices_with_mask": 4
+      }
+    },
+    "adjacent_slice_L1": 0.04960478097200394,
+    "z_axis_TV_per_mm": 846.5883178710938
+  },
+  {
+    "subject": "D2-073",
+    "n_slices": 32,
+    "voxel_spacing_xyz": [
+      0.6676136255264282,
+      0.6676136255264282,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 31,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.7377233774061346,
+        "centroid_drift_mm": 3.3400929431927584,
+        "n_slices_with_mask": 4
+      },
+      "uterus": {
+        "n_pairs": 31,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.7793833366748069,
+        "centroid_drift_mm": 7.139684044831974,
+        "n_slices_with_mask": 5
+      }
+    },
+    "adjacent_slice_L1": 0.03086279332637787,
+    "z_axis_TV_per_mm": 637.3372192382812
+  },
+  {
+    "subject": "D2-074",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 37,
+        "n_interior_pairs": 3,
+        "adjacent_slice_mask_dice": 0.8000664375214526,
+        "centroid_drift_mm": 2.7381041387108787,
+        "n_slices_with_mask": 4
+      },
+      "cyst": {
+        "n_pairs": 37,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.8166747376916869,
+        "centroid_drift_mm": 1.0360400742255853,
+        "n_slices_with_mask": 3
+      }
+    },
+    "adjacent_slice_L1": 0.04118264466524124,
+    "z_axis_TV_per_mm": 850.4490356445312
+  },
+  {
+    "subject": "D2-075",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      5.999999523162842
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 35,
+        "n_interior_pairs": 11,
+        "adjacent_slice_mask_dice": 0.7930009643453579,
+        "centroid_drift_mm": 2.2645508299001347,
+        "n_slices_with_mask": 12
+      },
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.7615678552535297,
+        "centroid_drift_mm": 5.362297462375307,
+        "n_slices_with_mask": 11
+      },
+      "cyst": {
+        "n_pairs": 35,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.806514820900655,
+        "centroid_drift_mm": 2.8706344428281474,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.0339636504650116,
+    "z_axis_TV_per_mm": 701.3720703125
+  },
+  {
+    "subject": "D2-076",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 5,
+        "adjacent_slice_mask_dice": 0.674719278864166,
+        "centroid_drift_mm": 4.934034252724138,
+        "n_slices_with_mask": 6
+      },
+      "cyst": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8143708296825469,
+        "centroid_drift_mm": 2.378444087260138,
+        "n_slices_with_mask": 5
+      }
+    },
+    "adjacent_slice_L1": 0.03605332225561142,
+    "z_axis_TV_per_mm": 615.31005859375
+  },
+  {
+    "subject": "D2-077",
+    "n_slices": 38,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "endometrioma": {
+        "n_pairs": 37,
+        "n_interior_pairs": 9,
+        "adjacent_slice_mask_dice": 0.8331299344384956,
+        "centroid_drift_mm": 1.9641701274603065,
+        "n_slices_with_mask": 10
+      }
+    },
+    "adjacent_slice_L1": 0.0424259714782238,
+    "z_axis_TV_per_mm": 724.0698852539062
+  },
+  {
+    "subject": "D2-078",
+    "n_slices": 34,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "ovary": {
+        "n_pairs": 33,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.9320625430065288,
+        "centroid_drift_mm": 1.1730247093117798,
+        "n_slices_with_mask": 5
+      },
+      "uterus": {
+        "n_pairs": 33,
+        "n_interior_pairs": 8,
+        "adjacent_slice_mask_dice": 0.8069064982848452,
+        "centroid_drift_mm": 3.8814457035740935,
+        "n_slices_with_mask": 9
+      },
+      "endometrioma": {
+        "n_pairs": 33,
+        "n_interior_pairs": 10,
+        "adjacent_slice_mask_dice": 0.8079390718248941,
+        "centroid_drift_mm": 8.854444580829817,
+        "n_slices_with_mask": 11
+      }
+    },
+    "adjacent_slice_L1": 0.041928522288799286,
+    "z_axis_TV_per_mm": 579.6198120117188
+  },
+  {
+    "subject": "D2-079",
+    "n_slices": 36,
+    "voxel_spacing_xyz": [
+      0.6818181872367859,
+      0.6818181872367859,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 35,
+        "n_interior_pairs": 11,
+        "adjacent_slice_mask_dice": 0.8103172222850342,
+        "centroid_drift_mm": 3.2329829708282145,
+        "n_slices_with_mask": 12
+      },
+      "endometrioma": {
+        "n_pairs": 35,
+        "n_interior_pairs": 4,
+        "adjacent_slice_mask_dice": 0.8665241768844465,
+        "centroid_drift_mm": 2.3372221888329694,
+        "n_slices_with_mask": 5
+      }
+    },
+    "adjacent_slice_L1": 0.03721969574689865,
+    "z_axis_TV_per_mm": 768.611572265625
+  },
+  {
+    "subject": "D2-080",
+    "n_slices": 35,
+    "voxel_spacing_xyz": [
+      0.78125,
+      0.78125,
+      6.0
+    ],
+    "organs": {
+      "uterus": {
+        "n_pairs": 34,
+        "n_interior_pairs": 7,
+        "adjacent_slice_mask_dice": 0.7455851363892865,
+        "centroid_drift_mm": 5.198960962733594,
+        "n_slices_with_mask": 9
+      },
+      "cyst": {
+        "n_pairs": 34,
+        "n_interior_pairs": 2,
+        "adjacent_slice_mask_dice": 0.7703281519861831,
+        "centroid_drift_mm": 0.9725961736427615,
+        "n_slices_with_mask": 3
+      }
+    },
+    "adjacent_slice_L1": 0.0578441321849823,
+    "z_axis_TV_per_mm": 987.2063598632812
+  }
+]
