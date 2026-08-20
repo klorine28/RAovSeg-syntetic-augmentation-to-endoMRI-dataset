@@ -1,0 +1,16 @@
+seed,config,n_subjects,ovary_dsc
+0,full,8,0.1815
+0,no_postprocess,8,0.1569
+0,no_resclass,8,0.0691
+1,full,8,0.2628
+1,no_postprocess,8,0.2446
+1,no_resclass,8,0.1016
+2,full,8,0.1471
+2,no_postprocess,8,0.1548
+2,no_resclass,8,0.1123
+3,full,8,0.2507
+3,no_postprocess,8,0.2429
+3,no_resclass,8,0.1172
+4,full,8,0.1026
+4,no_postprocess,8,0.1142
+4,no_resclass,8,0.0716
