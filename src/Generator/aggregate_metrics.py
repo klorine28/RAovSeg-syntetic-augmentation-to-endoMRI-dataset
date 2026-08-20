@@ -60,6 +60,17 @@ def aggregate_explain_dir(explain_dir: Path) -> dict:
         vals = [s.get("CLR_per_channel", {}).get(organ) for s in per_sample]
         out[f"CLR_{organ}"] = _nanmean(vals)
 
+    # CLR area fraction per organ — mask size as fraction of image (null baseline)
+    for organ in ORGAN_KEYS:
+        vals = [s.get("CLR_area_frac_per_channel", {}).get(organ) for s in per_sample]
+        out[f"CLR_area_frac_{organ}"] = _nanmean(vals)
+
+    # CLR enrichment per organ — CLR / area_frac. Null = 1, comparable across
+    # channels of different sizes. Preferred metric for cross-channel comparison.
+    for organ in ORGAN_KEYS:
+        vals = [s.get("CLR_enrichment_per_channel", {}).get(organ) for s in per_sample]
+        out[f"CLR_enrichment_{organ}"] = _nanmean(vals)
+
     # AILM per label channel
     for k in ALL_LABEL_KEYS:
         vals = [s.get("AILM_per_channel", {}).get(k) for s in per_sample]

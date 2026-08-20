@@ -40,7 +40,7 @@ import torch.nn.functional as F
 import yaml
 
 from .dataset import D2SliceDataset
-from .model import build_inference_scheduler, build_model_from_cfg
+from .model import build_inference_scheduler, build_model_from_cfg, resolve_gen_data_cfg
 
 
 def _save_images_to_dir(tensor: torch.Tensor, out_dir: Path) -> None:
@@ -224,14 +224,17 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[quality] device={device}")
 
-    dcfg = cfg["data"]
+    # Resolve for both Phase 1 (flat `data.*`) and Phase 2 (nested
+    # `data.generator.*` / `data.discriminator.*`). Pick the GENERATOR side
+    # for Phase 2 — that's what the model was conditioned on.
+    dcfg = resolve_gen_data_cfg(cfg)
     ds = D2SliceDataset(
         preprocessed_root=dcfg["preprocessed_root"],
         split_file=dcfg["split_file"],
         split="train",
         sequence=dcfg["sequence"],
-        num_label_channels=dcfg["num_label_channels"],
-        image_size=dcfg["image_size"],
+        num_label_channels=int(dcfg["num_label_channels"]),
+        image_size=int(dcfg["image_size"]),
     )
 
     model = build_model_from_cfg(cfg).to(device)

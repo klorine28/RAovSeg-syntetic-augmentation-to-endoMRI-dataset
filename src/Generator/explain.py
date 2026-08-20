@@ -54,6 +54,7 @@ from .model import (
     SPADEConditionedDDPM,
     build_inference_scheduler,
     build_model_from_cfg,
+    resolve_gen_data_cfg,
 )
 from .spade import SPADE
 
@@ -376,6 +377,9 @@ def compute_clr(
     High (→1.0) = surgical per-channel conditioning.
     Low (→0.3 in 6 channels) = diffuse conditioning, change spread everywhere.
     Equal-distribution baseline ≈ fraction of pixels covered by ch_mask.
+    (Because absolute CLR values are NOT comparable across channels of
+    different area, prefer the area-normalised enrichment version — see
+    compute_clr_enrichment and compute_clr_area_frac below.)
     """
     out: dict[str, float] = {}
     full = synth_full[0]
@@ -387,6 +391,46 @@ def compute_clr(
             continue
         ratio = float(diff[mask].sum() / diff.sum())
         out[ORGAN_NAMES.get(ch, f"ch{ch}")] = ratio
+    return out
+
+
+def compute_clr_area_frac(
+    label: np.ndarray,                        # (C, H, W) one-hot
+    channels: list[int] | None = None,
+) -> dict[str, float]:
+    """Per-channel area fraction = |ch_mask| / |image|.
+
+    This is the null-model expectation of CLR: if the counterfactual
+    L²-change is distributed uniformly across all pixels, the fraction
+    that falls inside a channel's mask equals the mask's area fraction.
+    """
+    _, H, W = label.shape
+    total = float(H * W)
+    if channels is None:
+        channels = list(range(label.shape[0]))
+    out: dict[str, float] = {}
+    for ch in channels:
+        area = float((label[ch] > 0).sum())
+        out[ORGAN_NAMES.get(ch, f"ch{ch}")] = area / total if total > 0 else float("nan")
+    return out
+
+
+def compute_clr_enrichment(
+    clr_per_channel: dict[str, float],
+    area_frac_per_channel: dict[str, float],
+) -> dict[str, float]:
+    """CLR / area_fraction. Null = 1 (uniform change reaches its own area
+    proportion inside the mask). Values > 1 mean the change is concentrated
+    in the mask beyond what area alone would predict. Comparable across
+    channels of different sizes.
+    """
+    out: dict[str, float] = {}
+    for name, clr in clr_per_channel.items():
+        af = area_frac_per_channel.get(name, float("nan"))
+        if af is None or np.isnan(af) or af <= 0 or np.isnan(clr):
+            out[name] = float("nan")
+        else:
+            out[name] = float(clr / af)
     return out
 
 
@@ -489,6 +533,16 @@ def compute_all_interpretability_metrics(
     if counterfactual_full is not None and counterfactual_ablated:
         result["CLR_per_channel"] = compute_clr(
             counterfactual_full, counterfactual_ablated, label
+        )
+        # Area-normalised enrichment — null baseline = 1 (comparable across
+        # channels of different sizes; addresses the "you can't compare uterus
+        # CLR to ovary CLR directly" critique).
+        ablated_channels = list(counterfactual_ablated.keys())
+        result["CLR_area_frac_per_channel"] = compute_clr_area_frac(
+            label, channels=ablated_channels
+        )
+        result["CLR_enrichment_per_channel"] = compute_clr_enrichment(
+            result["CLR_per_channel"], result["CLR_area_frac_per_channel"]
         )
     if spade_gamma:
         result["OSI_per_module"] = compute_osi(spade_gamma, label)
@@ -854,14 +908,19 @@ def main():
     if device.type == "cuda":
         print(f"[explain] GPU={torch.cuda.get_device_name(0)}")
 
-    dcfg = cfg["data"]
+    # Resolve the data config for both Phase 1 (flat `data.*`) and Phase 2
+    # (nested `data.generator.*` / `data.discriminator.*`). For Phase 2 we
+    # want the GENERATOR side (D1 T2) because that's what the model was
+    # conditioned on and what the counterfactual/attribution analysis is
+    # meaningful against.
+    dcfg = resolve_gen_data_cfg(cfg)
     ds = D2SliceDataset(
         preprocessed_root=dcfg["preprocessed_root"],
         split_file=dcfg["split_file"],
         split="train",
         sequence=dcfg["sequence"],
-        num_label_channels=dcfg["num_label_channels"],
-        image_size=dcfg["image_size"],
+        num_label_channels=int(dcfg["num_label_channels"]),
+        image_size=int(dcfg["image_size"]),
     )
 
     labels_np, reals_np = pick_top_n_by_foreground(ds, args.n)

@@ -586,10 +586,10 @@ needs revision:
 |---|---|---|
 | `synth_volumes/exp2_lam05/` (32 volumes) | Identical to exp2 | Same weights, same seed, same assembly |
 | `synth_volumes/exp2_lam50/` (32 volumes) | Identical to exp2 | Same weights, same seed, same assembly |
-| `lam05_dsc_summary.json`         | Duplicate of exp2 DSC | Segmenter fed identical inputs |
-| `lam50_dsc_summary.json`         | Duplicate of exp2 DSC | Same |
-| `lam05_pathC_dsc_summary.json`   | Duplicate                | Same |
-| `lam50_pathC_dsc_summary.json`   | Duplicate                | Same |
+| `lam05_dsc_summary.json`         | λ interpretation void, but **not** a duplicate of exp2 | Real 3-seed measurement (0.2457 / 0.0561 / 0.0492 → 0.117 ± 0.112, jobs 10763115/16/18). Synth inputs byte-identical to exp2, but scored by a separate downstream run, so the numbers differ from exp2's 0.020 |
+| `lam50_dsc_summary.json`         | No measurement at all | All three seeds `status: not_started` — λ = 0.50 was never run downstream pre-correction |
+| `lam05_pathC_dsc_summary.json`   | No measurement at all | All three seeds `status: not_started` |
+| `lam50_pathC_dsc_summary.json`   | No measurement at all | All three seeds `status: not_started` |
 | `exp2_pathC_dsc_summary.json`    | Correct measurement, but no meaningful comparison partners | The other two collapse into it |
 | Commit `50b9c56` ("Phase 2 pathC results + repo organisation") | Numerically correct but the λ interpretation is wrong | Same three numbers reported as different |
 | Commit `ec158b6` ("Phase 2 pathC (lam05, lam50) scripts and metrics") | Scripts fine, metrics collapse | Same |
@@ -598,6 +598,30 @@ needs revision:
 Anything reporting "λ = 0.05 vs λ = 0.5 vs baseline λ = 0.01" as three
 independent conditions in a table is currently reporting one number
 three times.
+
+**Correction (2026-08-14).** The rows above originally described the three
+`*_dsc_summary.json` files as duplicates of one another. That over-claimed, in
+two separate ways, and the corrected state is:
+
+- The **synth volumes** for `exp2`, `exp2_lam05` and `exp2_lam50` *are*
+  byte-identical. That is the fact that voids the λ interpretation, and it
+  stands.
+- `lam05_dsc_summary.json` is **not** a duplicate of `exp2_dsc_summary.json`.
+  Both are genuine 3-seed measurements from separate downstream runs whose
+  configuration differed at score time: exp2 → 0.020 ± 0.010, lam05 →
+  0.117 ± 0.112.
+- `lam50_dsc_summary.json`, `lam05_pathC_dsc_summary.json` and
+  `lam50_pathC_dsc_summary.json` contain **no measurements**; every seed is
+  `status: not_started`. There was never a three-point pre-correction λ
+  ablation downstream — there were two points (exp2 and lam05) plus
+  `exp2_pathC` (0.152 ± 0.053).
+
+So: identical generator inputs, different (or absent) scoring runs. These are
+not independent λ conditions and must not be tabulated as such. The
+dissertation reports the post-correction Phase 2 numbers only
+(0.188 / 0.173 / 0.158, §4.5 and §4.7); the pre-correction 0.117 figure has been
+removed from §4.1 and §4.9, and the pre-correction 0.020 and 0.152 survive in
+§4.5.2 and §4.8, where they are correct.
 
 ### 10.2 What's not void
 
@@ -774,3 +798,142 @@ grep '\[GRAD_DIAG\]' logs/diag_lambda_grads_*.out | tail -40
 If all four checks agree — byte-identical files, byte-identical
 weights, byte-identical loss trajectories, and `|grad_lam·L_adv| = 0` —
 the bug is present. The fix in §8 addresses it directly.
+
+---
+
+## 13. Post-fix results (Aug 2026)
+
+After the fix, all 5 affected experiments were retrained end-to-end
+(exp1c_concat, exp1c_spade, exp2, exp2_lam05, exp2_lam50). Synth
+volumes were then re-assembled from the new checkpoints and run
+through RAovSeg augmentation at 3 seeds per variant.
+
+### 13.1 Checkpoint divergence — first sanity that the fix propagated
+
+MD5 hashes of the state-dict tensors, post-fix:
+
+```
+exp1c_spade_fixed        EMA=6ac43e52b95ed539  MODEL=19f922c977f11df7
+exp1c_concat_fixed       EMA=747c7007c247aa34  MODEL=cd266e259bd982f3
+exp2_fixed               EMA=e3091328b30d0757  MODEL=1e8388933a6ee9fa
+exp2_lam05_fixed         EMA=a07cb4690725b2cc  MODEL=aa9e78572dc493ac
+exp2_lam50_fixed         EMA=54f9da6f06c04d56  MODEL=12859994bb6227d4
+```
+
+All 5 differ; crucially the three Phase 2 λ variants that were
+byte-identical pre-fix are now genuinely distinct models.
+
+### 13.2 Downstream DSC — pre-fix vs post-fix comparison
+
+| Variant | Pre-fix DSC | Post-fix DSC (n=3) | Δ | Note |
+|---|---|---|---|---|
+| exp1c_concat | 0.053 ± 0.056 | **0.202 ± 0.025** | **+0.149** (~4× higher) | Contradicts "concat architecturally locked out" |
+| exp1c_spade | 0.178 ± 0.054 (n=8) | **0.226 ± 0.012** | +0.048 (+27%) | New ceiling for Phase 1 |
+| exp2 (λ=0.01) | 0.020 ± 0.010 | **0.188 ± 0.065** | +0.168 (~9× higher) | "Catastrophic collapse" was mostly a bug |
+| exp2_lam05 (λ=0.05) | 0.020 (bug) | **0.173 ± 0.086** | first real | λ-response finally measurable |
+| exp2_lam50 (λ=0.50) | 0.020 (bug) | **0.158 ± 0.147** | first real | Highest λ ≠ highest DSC |
+| Real-only baseline | 0.290 | 0.290 | — | Ceiling unchanged (data scarcity) |
+
+### 13.3 Intensity mechanism — how the fix moved synth distributions
+
+Post-fix ovary voxel intensity distributions (from
+`figures_fixed/mechanism/mech_ovary_intensity_table.csv`):
+
+| Variant | Ovary mean | In-window (%) | Change from pre-fix |
+|---|---|---|---|
+| Real D2 | 0.521 | 10.6% | — |
+| spade_fixed | 0.241 | 20.6% | in-window +1.8pp |
+| concat_fixed | 0.246 | **54.8%** | in-window **+38.6pp** (dominant effect) |
+| exp2_fixed | 0.344 | 9.9% | Phase 2 intensity now varies with λ |
+| exp2_lam05_fixed | 0.322 | 19.7% | highest of Phase 2 |
+| exp2_lam50_fixed | 0.340 | 9.1% | non-monotonic response |
+
+**Concat's in-window fraction jumped from 16% (pre-fix) to 55% (post-fix)** —
+this is the mechanistic signature of PatchGAN doing real work. It
+tightens the intensity distribution around RAovSeg's [0.22, 0.30]
+enhancement window, which then translates to the DSC gain.
+
+### 13.4 Retraction of pre-fix interpretations
+
+The following claims from earlier work are now known to be void or need
+revision:
+
+| Claim | Status |
+|---|---|
+| "Concat is architecturally locked out" (Chapter 4 §4.3.4, §4.3.6, §5.2) | **Retracted.** Concat with real PatchGAN gets DSC 0.202 — behind SPADE's 0.226 but not catastrophically. Softening required. |
+| "Phase 2 catastrophically collapses to DSC 0.020" (§4.5.2-4.5.5, §5.1) | **Mostly retracted.** Fixed Phase 2 gets 0.16-0.19 — still below Phase 1 but the collapse is 8-9× less severe. |
+| "λ_peak has no effect on Phase 2 DSC" (§4.5-4.6) | **Retracted.** The whole ablation was void. λ_peak has a real effect now — non-monotonic; λ=0.01 slightly beats λ=0.05 which slightly beats λ=0.50. Within-noise ordering at n=3. |
+| "MSE dominates PatchGAN adversarial pressure at low λ" (§4.5.3) | **Retracted.** The mechanistic explanation was fabrication — PatchGAN's gradient was exactly zero, not just weak. No mechanism could be adjudicated pre-fix. |
+
+### 13.5 New findings enabled by the fix
+
+- **PatchGAN's actual contribution to concat is +0.15 DSC** (0.053 →
+  0.202). This is the most striking quantitative finding of the entire
+  bug-fix exercise. In pre-fix, we could not detect PatchGAN's effect
+  because there wasn't one; the effect was masked as "concat is bad".
+- **Phase 1 v3 SPADE ceiling raised from 0.178 to 0.226.** The Chapter
+  4 §4.4 variance study's ceiling arithmetic needs updating.
+- **Phase 2 is no longer a "cross-domain fails" story.** Fixed exp2 gets
+  0.188 vs Phase 1's 0.226 — a small gap, not a chasm. The dissertation's
+  "bad synth is worse than no synth" claim at DSC 0.020 was measuring
+  the bug, not the cross-domain paradigm.
+- **The λ_peak ablation is genuine but the ordering is subtle.** Larger
+  λ ≠ better; the middle value (0.05) sits between 0.01 and 0.50 in
+  in-window fraction but not in DSC. Larger seed count would clarify.
+
+### 13.7 CLR + enrichment table (Aug 12 refresh)
+
+Full per-channel CLR + area-normalised enrichment (E = CLR / cohort-mean
+area fraction; null = 1). Cohort-mean area fractions from the D2
+training set: uterus = 0.00718, ov_L = 0.000511, em = 0.000435.
+Values from `metrics/master_metrics.csv`.
+
+| Variant | CLR_ut | E_ut | CLR_ovL | E_ovL | CLR_em | E_em |
+|---|---|---|---|---|---|---|
+| 1a concat (no D) | 0.013 | 1.8 | 0.043 | 83 | 0.028 | 64 |
+| 1b SPADE (no D) | 0.407 | 57 | 0.495 | 968 | 0.532 | 1222 |
+| 1c concat (pre-fix, D inert) | 0.069 | 10 | 0.080 | 157 | 0.063 | 145 |
+| 1c SPADE (pre-fix, D inert) | 0.405 | 56 | 0.297 | 580 | 0.420 | 965 |
+| **1c concat FIXED** | **0.345** | **48** | **0.144** | **282** | 0.043 | 99 |
+| **1c SPADE FIXED** | **0.628** | **88** | **0.890** | **1741** | **0.842** | **1935** |
+| exp2 FIXED (λ=0.01) | — | — | — | — | 0.297 | 682 |
+| exp2_lam05 FIXED (λ=0.05) | — | — | — | — | 0.254 | 583 |
+| exp2_lam50 FIXED (λ=0.5) | — | — | — | — | 0.058 | 134 |
+
+Phase 2 uterus/ovary entries are `—` because `explain.py` (Phase 2 path)
+picks D1-side slices, and the top-foreground D1 slices happen to have
+em labels populated but not consistent ut/ov (D1's label coverage is
+different from D2's — see [OVARY_INTENSITY_ISSUE.md](OVARY_INTENSITY_ISSUE.md)).
+Redoing Phase 2 explain against the D2 discriminator pool would fill in
+those entries — future work.
+
+**Headline finding:** 1c_SPADE_FIXED is the new per-channel localisation
+ceiling — E_ovL = 1741× vs 968× for 1b (no-PatchGAN SPADE), a 1.8×
+improvement. E_em = 1935× vs 1222× (1.6×). Uterus 88 vs 57 (1.5×).
+Every channel improved because the adversarial gradient is now
+reaching the generator; 1c is finally not equivalent to 1b.
+
+**Phase 2 λ finding:** monotonic DEGRADATION of E_em with λ (682 at
+λ=0.01 → 583 at λ=0.05 → 134 at λ=0.5). Stronger adversarial pressure
+destroys per-channel specificity for cross-domain. The intended sweep
+hypothesis ("larger λ helps recover cross-domain quality") is refuted.
+Suggests future Phase 2 work should sweep λ ≤ 0.01, not above.
+
+### 13.8 What still needs to be resolved
+
+1. **CLR for Phase 2 uterus/ovary** — explain.py currently picks D1-side
+   slices in Phase 2 mode; those don't have ut/ov labels well-populated.
+   Adding a `--data-side discriminator` flag would let us re-run against
+   D2 and fill in the missing columns.
+2. **FID / LPIPS / hist_KL for fixed variants** — not recomputed;
+   `metrics/master_metrics.csv` shows `nan` for these on the fixed rows.
+   Pre-fix data suggests they'll be flat correlations, but that's an
+   inference, not a measurement.
+3. **Multi-seed re-run for Phase 2** — the n=3 std on exp2_lam50 is 0.147.
+   The current ordering (lam01 > lam05 > lam50) is within-noise; needs n≥5
+   to be defensible.
+4. **Tier 1 sweep on the fixed 1c_spade checkpoint** — retrain moved the
+   ceiling from 0.178 → 0.226 without any sweep tuning. The 30-trial
+   sweep against the fixed generator is likely to add another +0.02-0.05
+   on top, but that's still pending queue availability.
+

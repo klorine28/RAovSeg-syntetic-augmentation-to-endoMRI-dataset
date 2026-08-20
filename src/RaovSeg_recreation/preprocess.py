@@ -6,7 +6,8 @@ Steps:
   1. Resample to 512x512, spacing (0.35, 0.35, 6.0) mm
   2. Percentile clip (1st-99th)
   3. Min-max normalization to [0, 1]
-  4. Custom intensity enhancement (o1=0.24, o2=0.3)
+  4. Custom intensity enhancement (default o1=0.22, o2=0.30 — paper text;
+     override with --o1/--o2 for band-sweep experiments)
 """
 
 import sys
@@ -62,13 +63,18 @@ def _out_size_for(image: "sitk.Image") -> tuple[int, int, int]:
     return (OUT_XY, OUT_XY, native_z)
 
 
-def preprocess_image(img_path: Path, skip_enhancement: bool = False) -> np.ndarray:
+def preprocess_image(img_path: Path, skip_enhancement: bool = False,
+                     o1: float = O1, o2: float = O2) -> np.ndarray:
     """Load, resample (in-plane only), normalize, and enhance a single MRI volume.
 
     If `skip_enhancement` is True, returns after the percentile-clip + minmax
-    step, WITHOUT the RAovSeg custom ovary-intensity enhancement (o1=0.22,
-    o2=0.30 windowing). Used by Option C of the augmentation experiments
-    to test whether the enhancement step is what's hurting synth utility.
+    step, WITHOUT the RAovSeg custom ovary-intensity enhancement. Used by
+    Option C of the augmentation experiments to test whether the enhancement
+    step is what's hurting synth utility.
+
+    `o1`/`o2` set the enhancement window (defaults from module constants,
+    which reproduce Liang et al.'s [0.22, 0.30]). Override for band-sweep
+    experiments.
     """
     img = sitk.ReadImage(str(img_path), sitk.sitkFloat64)
     img = ImgResample(img, out_spacing=OUT_SPACING, out_size=_out_size_for(img),
@@ -78,7 +84,7 @@ def preprocess_image(img_path: Path, skip_enhancement: bool = False) -> np.ndarr
                         percentile_low=PERCENTILE_LOW, percentile_high=PERCENTILE_HIGH)
     if skip_enhancement:
         return img_array.astype(np.float32)
-    img_enhanced = preprocess_(img_array, o1=O1, o2=O2)
+    img_enhanced = preprocess_(img_array, o1=o1, o2=o2)
     return img_enhanced
 
 
@@ -100,12 +106,16 @@ def find_best_sequence(subject_dir: Path, subject_id: str) -> Path | None:
 
 
 def process_subject(subject_dir: Path, output_dir: Path, subject_id: str,
-                    skip_enhancement: bool = False):
+                    skip_enhancement: bool = False,
+                    o1: float = O1, o2: float = O2):
     """Process a single subject: image + ovary label.
 
     `skip_enhancement` — see preprocess_image docstring. Used by Option C
     of the augmentation experiments to skip the o1/o2 enhancement for
     synthetic subjects (D2-9XX) while keeping it for real ones.
+
+    `o1`/`o2` — see preprocess_image docstring; used by the band-sweep
+    experiment to move the enhancement window off the published default.
     """
     img_path = find_best_sequence(subject_dir, subject_id)
     if img_path is None:
@@ -115,7 +125,8 @@ def process_subject(subject_dir: Path, output_dir: Path, subject_id: str,
     # Process image
     print(f"  Image: {img_path.name}"
           + ("  (enhancement SKIPPED)" if skip_enhancement else ""))
-    img_enhanced = preprocess_image(img_path, skip_enhancement=skip_enhancement)
+    img_enhanced = preprocess_image(img_path, skip_enhancement=skip_enhancement,
+                                    o1=o1, o2=o2)
 
     # Save
     subj_out = output_dir / subject_id
@@ -274,9 +285,18 @@ def main():
                              "subjects whose ID starts with this prefix (e.g. 'D2-9' for synthetic "
                              "subjects). Real subjects still get enhancement. Used to test whether "
                              "the enhancement step is what's hurting synth utility.")
+    parser.add_argument("--o1", type=float, default=O1,
+                        help=f"Lower bound of the enhancement window (default {O1}, "
+                             f"reproducing Liang et al.). Band-sweep experiment overrides this.")
+    parser.add_argument("--o2", type=float, default=O2,
+                        help=f"Upper bound of the enhancement window (default {O2}). "
+                             f"Band-sweep experiment overrides this.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Scan and write manifest only; skip preprocessing")
     args = parser.parse_args()
+
+    if not (0.0 <= args.o1 < args.o2 <= 1.0):
+        parser.error(f"require 0 <= --o1 ({args.o1}) < --o2 ({args.o2}) <= 1")
 
     data_dir = args.data_dir
     output_dir = args.output_dir
@@ -319,6 +339,9 @@ def main():
     skip_prefix = args.skip_enhancement_for_prefix
     if skip_prefix:
         print(f"[preprocess] Option C: skipping enhancement for subjects with prefix '{skip_prefix}'")
+    if (args.o1, args.o2) != (O1, O2):
+        print(f"[preprocess] enhancement window OVERRIDE: o1={args.o1}, o2={args.o2} "
+              f"(default was o1={O1}, o2={O2})")
     for r in rows:
         if not r["included"]:
             continue
@@ -327,7 +350,8 @@ def main():
         src_dir = Path(r.get("source_dir", str(data_dir)))
         skip_enh = bool(skip_prefix and sid.startswith(skip_prefix))
         print(f"\nProcessing {sid} [{split}] from {src_dir} (sequence: {r['sequence']}):")
-        process_subject(src_dir / sid, output_dir / split, sid, skip_enhancement=skip_enh)
+        process_subject(src_dir / sid, output_dir / split, sid,
+                        skip_enhancement=skip_enh, o1=args.o1, o2=args.o2)
 
     print("\nDone.")
 

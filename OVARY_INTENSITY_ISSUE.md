@@ -6,6 +6,19 @@ and every parameter — training-time, inference-time, and post-processing —
 that we can move to fix it. Cross-links to the code and to the figures you
 should open next to each section.
 
+> ⚠️ **POST-FIX UPDATE (2026-08-11)** — Every synth variant referenced
+> below (1c_spade, exp2, lam05, etc.) was produced by generators
+> trained with a PatchGAN gradient-severance bug that voided the
+> adversarial signal. Post-fix, the ovary intensity distributions of
+> the fixed variants moved substantially — most notably
+> **concat_fixed's in-window fraction jumped from ~16% to 54.8%**, the
+> mechanistic signature of PatchGAN actually doing its job. The mechanism
+> and knob-taxonomy in this doc are still correct; the specific values
+> in Path B / intensity-dial examples were measured on buggy synth and
+> should be re-read in light of the fixed numbers in
+> [LAMBDA_ABLATION_COLLAPSE.md §13.3](LAMBDA_ABLATION_COLLAPSE.md). The
+> post-fix mechanism figures live in `figures_fixed/mechanism/`.
+
 > **TL;DR** — RAovSeg segments ovaries with a hard-coded intensity heuristic:
 > pixels whose normalised intensity falls in `[o1=0.22, o2=0.30]` get pushed
 > to the "ovary" band; everything else gets suppressed. Real D2 ovary voxels
