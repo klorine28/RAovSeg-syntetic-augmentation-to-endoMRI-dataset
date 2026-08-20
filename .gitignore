@@ -65,3 +65,22 @@ hpc_pulled/
 figures_tier1/
 figures_v3_intensity_dial/
 figures_v3_phases/
+
+# --- Large metric artefacts (fid_work + hist_kl JSONs; regeneratable) ---
+metrics/fixed/
+
+# --- HPC explain outputs (regeneratable on HPC) ---
+runs_explain/
+
+# --- Scratch scripts ---
+scripts/tmp/
+
+# --- Scratch check images ---
+_*.jpg
+_*.png
+
+# --- Editor backups ---
+*.md.bak
+
+# --- One-off superseded backups ---
+metrics/*.OLD_*.csv
