@@ -19,6 +19,15 @@
 > `../docs_archive/RESULTS_2x2.md` and
 > `../docs_archive/RAOVSEG_AUGMENTATION_EXPERIMENT.md`.
 
+> ⚠️ **POST-FIX UPDATE (2026-08-11)**: A code bug voided the PatchGAN
+> adversarial gradient in every 1c and Phase 2 training run. After the
+> fix and retrains, the numerical results below need substantial
+> revision — see **§4.7 Post-fix results** at the end of this chapter
+> for the corrected 1c DSC, Phase 2 λ ordering, and per-channel
+> enrichment table. Values in §4.2–4.6 reflect the pre-fix state and
+> are preserved as historical record; where a claim in §4.2–4.6 is
+> later revised, §4.7 supersedes. Full backstory: [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+
 ---
 
 ## 4.1 Experimental overview [target: 200 words]
@@ -814,3 +823,472 @@ of each other and of pathC-alone.
   the DSC story.
 - **Alternative downstream segmenters** — RAovSeg is the only downstream
   tested. Chapter 6 flags this as a limitation.
+
+---
+
+## 4.11 Post-fix retrain (Aug 2026) — the PatchGAN bug and what changed
+
+> **All sections above (§4.2–§4.8) report measurements from a training
+> pipeline containing a PatchGAN gradient-severance bug** (a misplaced
+> `.detach()` on `eps_pred` at [train.py:464]) that produced
+> `|∇(λ·L_adv)| = 0` on every step for every 1c and Phase 2 run. The
+> bug was discovered when the three Phase 2 λ variants produced
+> byte-identical synth output; a direct gradient measurement confirmed
+> the graph severance. Full bug documentation:
+> [`LAMBDA_ABLATION_COLLAPSE.md`](../LAMBDA_ABLATION_COLLAPSE.md).
+>
+> The bug was fixed, all 5 affected generators retrained end-to-end,
+> and all downstream DSCs re-run. This section presents the corrected
+> numbers and flags which pre-fix claims are void.
+
+### 4.11.1 Corrected DSC — pre-fix vs post-fix (n = 3 seeds per variant)
+
+| Variant | Pre-fix DSC | Post-fix DSC | Δ | Note |
+|---|---|---|---|---|
+| **exp1c_concat** | 0.053 ± 0.056 | **0.202 ± 0.025** | **+0.149** | ~4× improvement — contradicts pre-fix "concat locked out" claim |
+| **exp1c_spade** | 0.178 ± 0.054 (n=8) | **0.226 ± 0.012** | +0.048 | New Phase 1 ceiling |
+| **exp2** (λ=0.01) | 0.020 ± 0.010 | **0.188 ± 0.065** | +0.168 | ~9× improvement — pre-fix "collapse" was largely bug |
+| **exp2_lam05** (λ=0.05) | 0.020 (bug artifact) | **0.173 ± 0.086** | first real | λ ablation now measurable |
+| **exp2_lam50** (λ=0.50) | 0.020 (bug artifact) | **0.158 ± 0.147** | first real | Non-monotonic λ response |
+| Real-only baseline | 0.290 | 0.290 | unchanged | Data-scarcity ceiling holds |
+
+### 4.11.2 Intensity mechanism — how PatchGAN moved the distributions
+
+Post-fix ovary-voxel intensity summary (from
+`figures_fixed/mechanism/mech_ovary_intensity_table.csv`):
+
+| Variant | Ovary mean | In-window (%) | Pre-fix in-window |
+|---|---|---|---|
+| Real D2 (pooled) | 0.521 | 10.6% | — |
+| spade_fixed | 0.241 | 20.6% | 18.8% (essentially unchanged) |
+| concat_fixed | 0.246 | **54.8%** | **16.2%** — +38.6 pp jump |
+| exp2_fixed | 0.344 | 9.9% | (all three Phase 2 identical pre-fix) |
+| exp2_lam05_fixed | 0.322 | 19.7% | " |
+| exp2_lam50_fixed | 0.340 | 9.1% | " |
+
+Concat's in-window fraction jumping from 16% → 55% is the dominant
+mechanistic signature of the fix. Real PatchGAN gradient tightens
+synth intensity distribution around RAovSeg's enhancement window
+[0.22, 0.30]. Spade's in-window was already high pre-fix (18.8%)
+because its explicit label-conditioning modulation had captured most
+of the localisation signal even without adversarial pressure.
+
+### 4.11.3 Metric-vs-DSC correlations (n = 5 variants) — replaces §4.2.4
+
+Correlations computed on the 5 post-fix variants (concat, spade,
+exp2, exp2_lam05, exp2_lam50) between per-variant image-domain
+metrics and per-variant mean DSC on the RAovSeg test set:
+
+| Metric | Pearson r | p_r | Spearman ρ | p_ρ | Reading |
+|---|---|---|---|---|---|
+| ovary_mean | **−0.84** | 0.07 | −0.70 | 0.19 | lower ovary intensity → higher DSC |
+| **FID** | **−0.83** | 0.08 | −0.60 | 0.29 | higher FID (further from real by Inception features) → higher DSC |
+| **LPIPS_mean** | **+0.68** | 0.20 | +0.60 | 0.29 | higher perceptual distance → higher DSC |
+| hist_KL | −0.50 | 0.39 | −0.70 | 0.19 | lower intensity-histogram divergence → higher DSC |
+| in_window_pct | +0.42 | 0.48 | **+0.80** | 0.10 | monotonic; saturates ~20% |
+| CLR | — | — | — | — | Missing (Phase 2 explain runs incomplete at time of writing) |
+
+Full analysis: [`METRIC_DSC_CORRELATION.md`](../METRIC_DSC_CORRELATION.md).
+Scatter plots per metric are collected in
+[`figures_fixed/correlation/summary_grid.png`](../hpc_pulled/fixed_analysis/figures_fixed/correlation/summary_grid.png).
+
+**Reading**: task-specific intensity metrics predict DSC in the
+expected direction with weak-to-suggestive significance at n=5. The
+sign of both correlations is mechanistically interpretable — the
+detail is in §4.11.3.1.
+
+#### 4.11.3.1 Possible explanations for the observed correlation signs
+
+**Why `ovary_mean` is *negatively* correlated with DSC (r = −0.85).**
+The RAovSeg preprocessing pipeline (Liang et al., 2025) applies a
+piecewise-linear enhancement in the intensity window [0.22, 0.30]
+tuned to real T2FS ovary tissue. Voxels inside this window are
+amplified; voxels outside are suppressed. A generator whose ovary
+voxels sit near this window will retain information after
+preprocessing; a generator whose ovary voxels sit above (too bright)
+or below (too dark) will have those voxels squashed. Real-D2 pooled
+`ovary_mean` is 0.521 — well above the window. Every fixed variant's
+`ovary_mean` (0.241–0.344) sits closer to the window than the real
+distribution does. So the "worse-looking" generators (further from
+real intensities) are actually *better aligned to the preprocessing
+consumer*. Lower `ovary_mean` → closer to the window centre (~0.26)
+→ more ovary voxels survive preprocessing → higher DSC. This is a
+preprocessing-alignment effect, not a realism effect.
+
+**Why `in_window_pct` correlates *monotonically but non-linearly*
+(ρ = +0.80, r = +0.42).** The Pearson–Spearman split is diagnostic:
+Pearson is dragged down by an outlier (concat_fixed's 54.8%
+in-window vastly exceeds the others' 9–20%), but Spearman recovers
+the underlying monotone ordering. The relationship saturates at
+around 20% in-window: `exp2_lam05_fixed` (19.7%) does not beat
+`exp2_fixed` (9.9%) in DSC despite double the in-window match. This
+is a threshold-plus-plateau response — once enough ovary voxels lie
+inside the enhancement window for the ResClass slice-selection step
+to find them, additional in-window match yields diminishing returns
+because slice-selection is already saturated. Beyond that plateau
+AttUSeg's segmentation head is bottlenecked by boundary quality and
+label geometry, not intensity match.
+
+**Why the two intensity metrics point in opposite directions on
+real-D2.** `ovary_mean` measures a distributional statistic (central
+tendency of the ovary intensity histogram); `in_window_pct` measures
+a task-specific event (fraction of ovary voxels the downstream
+preprocessor will *keep*). On the fixed variants they happen to
+agree — both flag concat_fixed and spade_fixed as the top two — but
+the sign flip against real-D2 (whose `ovary_mean = 0.521` is worst
+but whose `in_window_pct = 10.6%` sits mid-pack) is a warning: on a
+single generator, "closer to real intensities" is not a
+downstream-quality invariant when the downstream pipeline is
+non-linear and target-tuned.
+
+#### 4.11.3.1b Extended downstream metrics — 5 image × 4 downstream (Aug 2026)
+
+The DSC-only correlation table in §4.11.3 was extended to four
+downstream measures (DSC, HD95_mm, sensitivity, volume_error) using
+the per-seed metrics already stored in each variant's
+`metrics_ov.json` (means across 3 seeds; n = 5 variants):
+
+Per-variant post-fix downstream numbers (mean ± std across 3 seeds):
+
+| Variant | DSC | HD95_mm | sensitivity | precision | volume_error |
+|---|---|---|---|---|---|
+| exp1c_concat | 0.202 ± 0.025 | 51.2 ± 11.3 | 0.323 | 0.268 | 2.61 |
+| exp1c_spade  | 0.226 ± 0.012 | **43.6 ± 1.9** | 0.261 | **0.311** | 1.26 |
+| exp2         | 0.188 ± 0.065 | 43.6 ± 6.4  | 0.199 | 0.250 | 2.61 |
+| exp2_lam05   | 0.173 ± 0.086 | 52.3 ± 10.9 | 0.159 | 0.210 | **0.19** |
+| exp2_lam50   | 0.158 ± 0.147 | 64.0 ± 21.9 | 0.198 | 0.197 | 1.21 |
+
+**Pearson r matrix (5 image-domain metrics × 4 downstream metrics):**
+
+| Image metric | DSC | HD95_mm ↓ | sensitivity | volume_error ↓ |
+|---|---|---|---|---|
+| **FID** | **−0.84** | **+0.87** | −0.62 | −0.70 |
+| **LPIPS_mean** | +0.69 | −0.19 | **+0.88** | +0.20 |
+| hist_KL | −0.50 | −0.06 | −0.55 | +0.32 |
+| **ovary_mean** | **−0.85** | +0.38 | **−0.84** | −0.18 |
+| **in_window_pct** | +0.43 | −0.10 | **+0.82** | +0.39 |
+
+(↓ = lower value is better on that downstream metric.)
+
+Full outputs including Spearman ρ and heatmap in
+[`figures_fixed/correlation_extended/`](../hpc_pulled/fixed_analysis/figures_fixed/correlation_extended/).
+
+**Key structural finding — the utility-vs-realism divergence is
+metric-family-specific, not universal.** FID correlates in
+*opposite* directions with different downstream measures:
+
+- **FID vs DSC** r = −0.84: worse FID → higher DSC. Utility-vs-realism
+  divergence for the overlap metric.
+- **FID vs HD95** r = +0.87: worse FID → worse boundaries. Standard
+  "feature-level realism helps segmentation quality" — no divergence.
+- **FID vs sensitivity** r = −0.62: worse FID → lower detection recall.
+  Similar to DSC direction (utility-vs-realism), but weaker.
+- **FID vs volume_error** r = −0.70: worse FID → smaller volume error
+  (better). Same direction as DSC.
+
+The pattern splits along downstream-metric type:
+
+- **Overlap-based downstream metrics** (DSC, and volume_error which
+  is a coarse overlap proxy) show negative correlation with FID —
+  the utility-vs-realism divergence.
+- **Boundary/shape downstream metrics** (HD95) show positive
+  correlation with FID — no divergence; feature-level realism
+  tracks boundary quality in the expected direction.
+- **Detection metrics** (sensitivity) sit in the DSC family and
+  show the same divergence pattern.
+
+This is mechanistically consistent. FID (Inception features)
+captures higher-order structure that boundary quality also
+depends on. So when PatchGAN degrades feature-level realism, it
+degrades boundary quality too. But detection/overlap depends on
+whether ovary voxels survive the enhancement-window preprocessing —
+an intensity-domain question that PatchGAN improves. The two
+downstream sub-questions have different mechanisms, so a single
+image-quality metric can predict them in opposite directions.
+
+#### 4.11.3.1c Statistical robustness — bootstrap CIs and combined n = 7
+
+Two robustness analyses were added to test the correlation findings:
+
+**Bootstrap 95% CIs on the 5×4 matrix (5,000 draws, n = 5).**
+
+None of the 20 correlation cells' 95% CIs exclude zero. Reading with
+CI:
+
+| Image metric | DSC | HD95_mm | sensitivity | volume_error |
+|---|---|---|---|---|
+| FID | −0.84 [−1.00, +1.00] | +0.87 [−0.10, +1.00] | −0.62 [−1.00, +1.00] | −0.70 [−1.00, +0.01] |
+| LPIPS_mean | +0.69 [−1.00, +1.00] | −0.18 [−1.00, +1.00] | +0.88 [−1.00, +1.00] | +0.20 [−1.00, +1.00] |
+| hist_KL | −0.50 [−1.00, +0.89] | −0.06 [−1.00, +1.00] | −0.55 [−1.00, +1.00] | +0.32 [−1.00, +1.00] |
+| ovary_mean | −0.85 [−1.00, +0.40] | +0.38 [−1.00, +1.00] | −0.84 [−1.00, +1.00] | −0.18 [−1.00, +1.00] |
+| in_window_pct | +0.42 [−0.18, +1.00] | −0.10 [−1.00, +1.00] | +0.82 [−1.00, +1.00] | +0.39 [−1.00, +1.00] |
+
+Full CIs in
+[`figures_fixed/correlation_extended/bootstrap_ci_pivot.csv`](../hpc_pulled/fixed_analysis/figures_fixed/correlation_extended/bootstrap_ci_pivot.csv).
+The point estimates are all in the mechanistically-expected
+direction but the sample size (n = 5) does not support statistical
+significance at 95%. The correlations should be read as
+*suggestive pattern* not *confirmed relationship*.
+
+**Combined pre-fix + post-fix correlation (n = 7).**
+
+Adding the two matched Phase-1 pre-fix variants (exp1c_concat_pre
+DSC 0.053, exp1c_spade_pre DSC 0.178, both with dead PatchGAN) to
+the 5 post-fix variants gives n = 7 for FID / LPIPS / hist_KL vs
+DSC:
+
+| Metric | Pearson r (n = 7) | p |
+|---|---|---|
+| FID | **+0.41** | 0.36 |
+| LPIPS_mean | −0.26 | 0.57 |
+| hist_KL | −0.25 | 0.59 |
+
+The FID vs DSC correlation *flips sign* when the 2 pre-fix points
+are added (−0.84 within post-fix → +0.41 across all 7). This is a
+Simpson's-paradox effect and it changes how the utility-vs-realism
+finding must be reported.
+
+**What the combined view says.** Across the pre→post transition,
+both matched variants moved in the same direction: FID up (166→272
+concat, 188→274 spade) and DSC up (0.053→0.202 concat, 0.178→0.226
+spade). This is the utility-vs-realism divergence at the
+"PatchGAN off → PatchGAN on" transition. Within post-fix, the
+higher-λ variants (exp2_lam05, exp2_lam50) have both worse FID *and*
+worse DSC — that's what drives the strong within-post-fix negative
+correlation (r = −0.84), but the mechanism is *adversarial-training
+instability at high λ*, not a genuine "worse realism → better
+utility" trade.
+
+**Refined claim.** The utility-vs-realism divergence is real at the
+qualitative level (turning PatchGAN on trades some realism for
+utility) but does *not* generalise to "more PatchGAN → more
+utility." Cranking λ up degrades both axes. The optimum appears to
+be the minimum λ that keeps the discriminator training
+(λ_peak ≈ 0.01 in this study).
+
+#### 4.11.3.2 Standard image-quality metrics — MEASURED (Aug 2026)
+
+The `quality_metrics.py` sbatch jobs completed and post-fix FID,
+LPIPS-NN, and hist_KL are now available. Pre- vs post-fix on the
+two Phase-1 variants (only ones with matched pre-fix data):
+
+| Metric | concat pre → post | spade pre → post | Direction |
+|---|---|---|---|
+| FID | 166.5 → **271.7** (+63%) | 188.1 → **274.1** (+46%) | WORSE — prediction confirmed |
+| LPIPS_mean | 0.773 → 0.768 (−0.01) | 0.699 → 0.725 (+0.03) | ≈flat / slightly worse |
+| hist_KL | 5.79 → **2.62** (−55%) | 7.20 → **0.96** (−87%) | BETTER — unexpected |
+
+Full post-fix numbers for all 5 variants:
+
+| Variant | FID | hist_KL | LPIPS_mean |
+|---|---|---|---|
+| exp1c_concat_fixed | 271.7 | 2.62 | 0.768 |
+| exp1c_spade_fixed  | 274.1 | 0.96 | 0.725 |
+| exp2_fixed         | 267.1 | 11.05 | 0.591 |
+| exp2_lam05_fixed   | 349.7 | 4.86 | 0.640 |
+| exp2_lam50_fixed   | 381.4 | 5.56 | 0.623 |
+
+**Interpretation.** The three distributional metrics move in three
+different directions on the same synth. FID (Inception features)
+gets dramatically worse — the higher-order visual structure
+degrades. hist_KL (intensity histograms) gets dramatically better —
+the intensity distribution moves closer to real. LPIPS is
+essentially unchanged. The three metrics are answering different
+sub-questions of "does this look real?" and disagree with each
+other after the fix.
+
+**Mechanistic reading.** PatchGAN operates on 70×70 pixel patches
+and shapes local intensity distributions. So intensity-domain
+realism (hist_KL) improves, because the generator now optimises
+per-patch statistics that align with real intensity distributions.
+But Inception features (FID) capture higher-order structure —
+edges, textures, part-relationships — that PatchGAN's local-patch
+signal does not preserve. The generator sacrifices higher-order
+visual coherence in exchange for patch-level intensity fidelity.
+LPIPS sits between the two spatial scales and barely moves.
+
+This gives a sharper version of the utility-vs-realism divergence
+in §4.11.7: PatchGAN does not degrade "realism" uniformly. It
+improves realism at the intensity-domain level (which happens to
+align with what RAovSeg's enhancement-window preprocessing consumes)
+while degrading realism at the higher-order feature level (which
+happens to be what FID measures). The two axes are dissociable, and
+downstream utility tracks the intensity-domain axis rather than the
+feature-domain axis on this pipeline.
+
+### 4.11.4 Retracted or revised claims
+
+Compared with §5.2 (Chapter 5 pre-fix claims):
+
+| Claim | Pre-fix source | Status |
+|---|---|---|
+| "Concat is architecturally locked out" | §5.2, §4.3.4-4.3.6 | RETRACTED — concat gets 0.202, close to spade's 0.226 |
+| "Phase 2 catastrophically collapses at DSC 0.020" | §5.1, §4.5 | MOSTLY RETRACTED — fixed Phase 2 gets 0.16-0.19; still below Phase 1 but not catastrophic |
+| "λ_peak has no effect on Phase 2" | §4.5-§4.6 | RETRACTED — λ ablation now real, ordering λ=0.01 > λ=0.05 > λ=0.50 (within noise) |
+| "MSE dominates PatchGAN at low λ" | §4.5.3 | RETRACTED — no adversarial gradient to dominate; mechanistic story fabricated |
+
+### 4.11.5 What still holds
+
+- **Real-only baseline of 0.290 remains unbeaten** by every augmented
+  configuration. Data-scarcity ceiling argument (Chapter 5 §5.1)
+  stands with reworked prose.
+- **The n=8 variance study** finding (n=3 overstates true effect by
+  ~22%) still applies to the post-fix n=3 numbers — the corrected DSCs
+  are estimates and could shift by ~0.05 with more seeds.
+- **Path B ovary rescale** is generator-independent post-processing and
+  its mechanism is unchanged.
+
+### 4.11.6 Corrected headline story for the paper
+
+Instead of the pre-fix "concat architecturally broken + Phase 2
+catastrophically collapses" narrative, the fixed evidence supports:
+
+> *"Adversarial regularisation of the DDPM (via a conditional or
+> unconditional PatchGAN) contributed +0.05 to +0.17 DSC to every
+> augmentation configuration in our study. The largest gain was on
+> concat conditioning (0.053 → 0.202, ~4×), which contradicts our
+> earlier pre-fix claim that concat was architecturally locked out.
+> The dominant mechanism is a tightening of the synth intensity
+> distribution around RAovSeg's enhancement window, quantifiable
+> by the in-window fraction metric. Task-specific intensity metrics
+> (ovary_mean, in_window_pct) show the expected correlation with
+> downstream DSC (r = -0.85 and ρ = +0.80 respectively, n = 5).
+> The real-only baseline of DSC 0.290 remains unbeaten across all 5
+> augmented configurations, consistent with a data-scale ceiling at
+> n = 30 real training subjects."*
+
+### 4.11.7 Utility-vs-realism divergence (Aug 2026)
+
+The bug fix accidentally became a controlled experiment on the
+relationship between visual realism and downstream utility. Same
+generator architecture, same data, same seed, same loss weights —
+only one `.detach()` differed. The pre-fix and post-fix synth
+volumes therefore differ in only one dimension: whether the
+generator ever saw an adversarial gradient. Full documentation and
+figures: [`PATCHGAN_FIX_AND_UTILITY_VS_REALISM.md`](../PATCHGAN_FIX_AND_UTILITY_VS_REALISM.md).
+
+The empirical directions on the two "quality" axes are *opposite*:
+
+| Dimension | Pre-fix (dead PatchGAN) | Post-fix (alive PatchGAN) |
+|---|---|---|
+| Visual realism (subjective) | Higher — smooth, plausible T2FS-like | Lower — rougher, artefact-prone |
+| Downstream DSC (measured) | Lower — 0.02 to 0.18 across variants | Higher — 0.16 to 0.23 across variants |
+| In-window fraction (measured) | Lower — 9.9% to 20.6% | Higher — up to 54.8% (concat) |
+| FID (predicted, unmeasured) | Better — 166 to 200 (pre-fix values in §4.7) | Worse — 250+ predicted |
+
+The mechanistic reading is that the MSE component of DDPM loss and
+the adversarial component of PatchGAN loss reward *different*
+statistics. MSE rewards being close to average → smooth,
+"plausibly medical" outputs. PatchGAN rewards patch-level
+statistics matching real → high-frequency textures that reproduce
+per-patch intensity distributions. Under adversarial pressure the
+generator sacrifices global visual coherence in exchange for
+per-patch intensity fidelity — which, for RAovSeg's non-linear
+enhancement-window preprocessing, happens to be the exact statistic
+that determines whether ovary voxels survive to the segmentation
+head.
+
+**Implication for how this thesis reports "quality"**: the standard
+image-domain metrics (FID, LPIPS, hist_KL) reported in §4.7 measure
+realism, not utility. On this dataset with this segmenter, they
+are demonstrably decoupled from — and possibly anti-correlated
+with — downstream utility. Chapter 5 §5.8 develops the discussion
+of what this means for how synth-augmentation work should be
+evaluated in general.
+
+---
+
+## 4.7 Post-fix results (2026-08-11 onwards)
+
+The `.detach()` bug in `train.py:464` had voided the PatchGAN
+adversarial gradient in every 1c and Phase 2 training run
+(see §3.10.2 and [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md)).
+This section reports the corrected numbers from retrained variants.
+Values above in §4.2–4.6 are preserved for record; where they conflict,
+this section supersedes.
+
+### 4.7.1 Downstream DSC — corrected
+
+| Variant | Pre-fix DSC (n) | Post-fix DSC (n=3) | Δ |
+|---|---|---|---|
+| Real-only baseline | 0.290 | 0.290 | — |
+| 1c concat | 0.053 ± 0.056 | **0.202 ± 0.025** | +0.149 |
+| 1c SPADE | 0.178 ± 0.054 (n=8) | **0.226 ± 0.012** | +0.048 |
+| exp2 (λ=0.01) | 0.020 ± 0.010 | **0.188 ± 0.065** | +0.168 |
+| exp2_lam05 (λ=0.05) | 0.020 (identical to exp2 due to bug) | **0.173 ± 0.086** | first real |
+| exp2_lam50 (λ=0.5) | 0.020 (identical to exp2 due to bug) | **0.158 ± 0.147** | first real |
+
+Source: `runs/raov_aug_*_fixed_seed{0,1,2}/metrics_ov.json`.
+
+**Headline changes:**
+- **1c_concat jumped by ~4×** (0.053 → 0.202) — the pre-fix "concat
+  is architecturally locked out" finding was measuring the bug, not
+  concat.
+- **Phase 2 collapse loosened by ~9×** (0.020 → 0.188 for exp2). Phase 2
+  still underperforms Phase 1 (~0.19 vs ~0.23) but the "catastrophic"
+  framing is void.
+- **The λ ordering is non-monotonic and within-noise at n=3** — larger
+  λ ≠ better. Suggests future sweeps should extend to λ < 0.01, not
+  above.
+
+### 4.7.2 Per-channel enrichment table (supersedes the CLR table in §4.2.4)
+
+Enrichment `E = CLR / cohort-mean area fraction` (null = 1). Cohort-mean
+area fractions: uterus = 0.00718, ov_L = 0.000511, em = 0.000435.
+From `metrics/master_metrics.csv`:
+
+| Variant | CLR_ut | E_ut | CLR_ovL | E_ovL | CLR_em | E_em |
+|---|---|---|---|---|---|---|
+| 1a concat | 0.013 | 1.8 | 0.043 | 83 | 0.028 | 64 |
+| 1b SPADE | 0.407 | 57 | 0.495 | 968 | 0.532 | 1222 |
+| 1c concat (pre-fix) | 0.069 | 10 | 0.080 | 157 | 0.063 | 145 |
+| 1c SPADE (pre-fix) | 0.405 | 56 | 0.297 | 580 | 0.420 | 965 |
+| **1c concat FIXED** | 0.345 | **48** | 0.144 | **282** | 0.043 | 99 |
+| **1c SPADE FIXED** | 0.628 | **88** | 0.890 | **1741** | 0.842 | **1935** |
+| exp2 FIXED (λ=0.01) | — | — | — | — | 0.297 | 682 |
+| exp2_lam05 FIXED (λ=0.05) | — | — | — | — | 0.254 | 583 |
+| exp2_lam50 FIXED (λ=0.5) | — | — | — | — | 0.058 | 134 |
+
+Phase 2 uterus/ovary entries are `—` because `explain.py`'s Phase 2
+mode picks D1-side slices for the counterfactual analysis, and the
+top-foreground D1 slices don't have uterus/ovary labels consistently
+populated (D1's label coverage differs from D2's).
+
+**Headline finding:** 1c_SPADE_FIXED is the new per-channel
+localisation ceiling — E_ovL = 1741× (vs 968× for 1b) is a 1.8×
+improvement in ovary conditioning after the adversarial gradient
+actually reaches G. E_em = 1935× (vs 1222×) is 1.6×. Uterus 88 vs 57
+(1.5×). Every channel improved.
+
+**Phase 2 λ finding:** monotonic **decrease** of E_em with λ (682 at
+λ=0.01, 583 at λ=0.05, 134 at λ=0.5). Stronger adversarial pressure
+destroys per-channel specificity in cross-domain. The intended
+"stronger λ helps" hypothesis is refuted.
+
+### 4.7.3 Intensity mechanism — what the fix moved
+
+From `figures_fixed/mechanism/mech_ovary_intensity_table.csv`:
+
+| Variant | Ovary mean | In-window (%) | Change from pre-fix |
+|---|---|---|---|
+| Real D2 | 0.521 | 10.6% | — |
+| spade_fixed | 0.241 | 20.6% | in-window +1.8pp |
+| concat_fixed | 0.246 | **54.8%** | in-window **+38.6pp** (dominant effect) |
+| exp2_fixed | 0.344 | 9.9% | Phase 2 intensity now varies with λ |
+| exp2_lam05_fixed | 0.322 | 19.7% | highest of Phase 2 |
+| exp2_lam50_fixed | 0.340 | 9.1% | non-monotonic |
+
+**Concat's in-window fraction jumped from 16% (pre-fix) to 55% (post-fix)** —
+the mechanistic signature of PatchGAN doing real work: it tightens
+the ovary intensity distribution around RAovSeg's [0.22, 0.30]
+enhancement window, which translates to the +0.15 DSC gain.
+
+### 4.7.4 Retracted / revised claims from §4.2–4.6
+
+| Claim | Status |
+|---|---|
+| "Concat is architecturally locked out" (§4.3.4, §4.3.6) | **Retracted.** Concat with real PatchGAN gets DSC 0.202 — trailing SPADE's 0.226 but not catastrophically. Softening required in §5.2. |
+| "Phase 2 catastrophically collapses to DSC 0.020" (§4.5.2–4.5.5) | **Mostly retracted.** Fixed Phase 2 gets 0.16–0.19 — still below Phase 1 but 8–9× less severe. |
+| "λ_peak has no effect on Phase 2 DSC" (§4.5, §4.6) | **Retracted.** The whole ablation was void. λ_peak now has a measurable effect (non-monotonic; within-noise ordering at n=3). |
+| "MSE dominates PatchGAN adversarial pressure at low λ" (§4.5.3) | **Retracted.** PatchGAN's gradient was zero, not weak. No mechanism could be adjudicated pre-fix. |
+| CLR values in §4.2.4 | **Superseded** by the enrichment table §4.7.2. Old rows preserved for continuity. |

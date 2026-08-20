@@ -1,5 +1,14 @@
 # Tier 1 Inference Tuning + Explainability — Session Notes
 
+> ⚠️ **PARTIALLY SUPERSEDED (2026-08-11)** — Any interpretation in this
+> document attributing effects to PatchGAN in the 1c variants is void
+> because of the `eps_pred.detach()` bug (see [LAMBDA_ABLATION_COLLAPSE.md](../../LAMBDA_ABLATION_COLLAPSE.md)).
+> The CFG guidance / DDIM step tuning findings (Tier 1's original
+> purpose) are unaffected — they were sampled from the pre-trained
+> weights and do not depend on how those weights arose. Post-fix
+> corrections in the dissertation §4.7. Preserved as historical
+> record.
+
 A record of the inference-side tuning sweep on Exp 1b (CFG guidance + DDIM
 steps), the resulting default change applied to both 1a and 1b for ablation
 parity, and the design + implementation of the explainability module

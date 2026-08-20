@@ -4,6 +4,17 @@
 > generator design into one methodology chapter (the pattern used in
 > both distinction dissertations aca22mmm and acu23ns).
 
+> ⚠️ **POST-FIX UPDATE (2026-08-11)**: A code bug (`eps_pred.detach()` at
+> `src/Generator/train.py:464`) had voided the PatchGAN adversarial gradient
+> to the generator in every 1c and Phase 2 training run — `loss_g_adv.backward()`
+> propagated exactly zero gradient into `model.parameters()`, regardless of λ.
+> Fixed and retrained. Corrected results appear in **§3.10 Post-fix
+> corrections** at the end of this chapter (subject filtering arithmetic,
+> PatchGAN bug documentation, enrichment metric, mixing ratio,
+> discriminator-split verification, and the TPE-vs-FABOLAS methodology
+> paragraph). Text above §3.10 is preserved as originally drafted; where a
+> claim is later revised, §3.10 supersedes. Full backstory: [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+
 ---
 
 ## 3.1 Overview [target: 100 words]
@@ -458,3 +469,154 @@ The variance study (Chapter 4, §4.4) revises the v3 SPADE mean from
 0.218 (n=3) to 0.178 (n=8), demonstrating why n≥5 should be the
 minimum reporting standard for augmentation experiments at n<50 real
 subjects.
+
+---
+
+## 3.10 Post-fix corrections (2026-08-11)
+
+After discovering the PatchGAN gradient-severance bug (see
+[LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md) for full
+detail), five items in this chapter require revision. Original text
+above is preserved as historical record; the following supersede.
+
+### 3.10.1 Filtering arithmetic (supersedes §3.2.1)
+
+Verified counts from `data/processed/manifest.csv` (D2 rows only):
+
+- **73** raw D2 subjects in UT-EndoMRI
+- **−19** excluded: `has cy/em` (cyst/endometrioma-only, no plain ovary
+  annotation — the RAovSeg target)
+- **−14** excluded: `no ov label` (no ovary label from any rater)
+- **−2** excluded: `no MRI sequence` (missing the T2FS scan)
+- **= 38** manifest-included → 30 train_val + 8 test
+- **+2** em-only subjects added by `build_generator_split.py` (train =
+  train_val ∪ {has_em == 1}) for generator training only
+- **= 32** generator train + 8 held-out test
+
+Source: `data/processed/manifest.csv`,
+`data/processed_generator/D2/preprocess_summary.json` (total = 40,
+0 skipped at preprocess time). The previous chain `73 − 3 − 9 − 8`
+was arithmetically wrong.
+
+### 3.10.2 PatchGAN discriminator — training-loop bug (supersedes §3.4.4 / §3.4.5)
+
+The x̂₀ estimate fed to the discriminator during Exp 1c training was
+computed with `estimate_x0_from_eps(x_t, eps_pred.detach().float(), ...)`
+at `train.py:464`. The `.detach()` severed the computation graph
+between `eps_pred` (the generator's output) and `x0_hat`, so
+`loss_g_adv.backward()` propagated **exactly zero** gradient into
+`model.parameters()`, regardless of λ or the discriminator's
+confidence.
+
+The correct form is `eps_pred.float()` (no detach). The D update
+block already applies its own `x0_hat.detach()` when computing
+`d_fake_logits = discriminator(x0_hat.detach(), ...)`, so the two
+update directions stay correctly isolated.
+
+Empirical evidence via a `GRAD_DIAG` diagnostic block (see appendix):
+`|grad_lam·L_adv| = 0.000000e+00` at every logged step past λ warmup,
+while `|grad_L_diff|` was healthy (~3e-2 to 7e-2).
+
+**Scope of impact:** every training run with PatchGAN enabled —
+`exp1c_concat`, `exp1c_spade`, `exp2` (`exp2_d1_gen_d2_disc`),
+`exp2_lam05`, `exp2_lam50`. Pre-fix, these were equivalent to their
+no-PatchGAN counterparts (1a, 1b, or plain DDPM) with a useless D
+running in parallel.
+
+### 3.10.3 Enrichment metric supersedes raw CLR (supersedes §3.8.1 CLR)
+
+Raw Counterfactual Localisation Ratio (CLR) is not comparable across
+channels of different mask size. The null baseline for CLR is the
+channel's area fraction (e.g. uterus ≈ 0.72% of the image, ov_L ≈
+0.05%). We therefore report
+
+    E(channel) = CLR(channel) / area_fraction(channel)
+
+so E = 1 corresponds to change distributed proportionally to mask
+area, and E ≫ 1 indicates change concentrated inside the mask beyond
+what area alone would predict.
+
+For all reported enrichment values, area fractions come from the
+cohort mean over the D2 training slices (`data/processed_generator/D2`,
+32 train subjects × ~35 slices/subject). This ensures E is comparable
+across variants and across samples within a variant. Per-sample area
+fractions differ from the cohort mean because `explain.py` picks the
+top-N slices by foreground voxel count (biased toward larger masks);
+the cohort-mean denominator removes that bias.
+
+New columns in `metrics/master_metrics.csv`:
+`CLR_area_frac_<organ>`, `CLR_enrichment_<organ>` for organs
+`{uterus, ov_L, ov_R, em}`.
+
+### 3.10.4 Mixing ratio for downstream augmentation (new — was missing from §3.5)
+
+Every downstream RAovSeg augmentation experiment mixes:
+
+- **32 real D2 train subjects** (subjects in `data/splits/d2_generator_split.json['train']`)
+- **32 synthetic D2 subjects** produced by the trained generator
+  (`D2-900` … `D2-931`, one per real train subject)
+
+giving a **1 : 1 subject ratio**. No further augmentation is applied
+beyond the resampling and normalisation built into
+`RAovSeg/RAovSeg_tools.py`. Per-slice ratio is also approximately 1 : 1
+for Phase 1 (both cohorts identically resampled to matched Z-depth);
+Phase 2 has variable synth Z-depth so the per-slice ratio drifts
+slightly (typically 1.1 : 1 to 1.5 : 1). The 8 sacred test subjects
+(§3.2.2) are excluded from every augmentation pool at every stage of
+every experiment.
+
+### 3.10.5 Phase 2 discriminator has no test leak (supersedes concern raised in §3.7)
+
+The Phase 2 configs set
+`data.discriminator.split_file: data/splits/d2_generator_split.json`
+with `split='train'` at loader construction time. Verified in
+`logs/exp2_*.out`: `[D2SliceDataset/train] 32 subjects loaded` for
+both the generator (D1) and discriminator (D2) loaders. The 8 sacred
+test subjects (D2-005, D2-015, D2-016, D2-017, D2-023, D2-024, D2-026,
+D2-038) never enter any Phase 2 loader in any Phase 2 training run.
+
+### 3.10.6 Post-processing hyperparameter search — Optuna TPE + QMC warmup (new §3.9-equivalent)
+
+The Tier-1 sweep tunes seven assembly/post-processing knobs
+(`ovary_target_intensity`, `iscs_alpha`, `iscs_lowpass_sigma`,
+`z_smooth_sigma`, `body_mask`, `hist_match`, `skip_enhancement`)
+against downstream RAovSeg ovary DSC. Two design decisions govern
+the search: which sampler, and how to warm-start it.
+
+**Sampler — Tree-structured Parzen Estimator (TPE) via Optuna.** TPE
+models the objective as two conditional densities and picks the next
+point that maximises the ratio. For this setup TPE has three
+practical properties Gaussian-Process (GP) methods do not:
+
+- Native handling of mixed / categorical parameters (the boolean
+  flags enter cleanly; FABOLAS and standard GP-BO variants require
+  kernel-design work here);
+- Scales linearly in trial count vs O(n³) matrix inversion for exact
+  GP-BO;
+- No requirement for a trainable model of `(hyperparams, s) →
+  objective` — FABOLAS (Klein et al., 2017) assumes multi-fidelity
+  access to the objective via a controllable training-set size `s`,
+  which our fixed RAovSeg pipeline does not provide.
+
+**Warm-up — quasi-Monte Carlo (QMC) for the first 10 trials.**
+TPE's default startup samples uniformly and under-covers the corners
+of a 7-dimensional cube. We replace it with a Sobol' QMC sequence
+(Optuna's `QMCSampler`, `n_startup_trials=10`) to give the model a
+space-filling seed set before it switches to TPE-guided sampling.
+Follows Bergstra et al. (2013).
+
+**Rejected alternatives:** GP-BO (Snoek et al., 2012) would fit
+acceptably at n≈100 but needs per-kernel design for the boolean
+dimensions. FABOLAS assumes a multi-fidelity objective we don't have.
+Grid search on 7 dimensions is not tractable at 5 GPU-hours/point.
+Random search would find comparable optima given the budget but
+wastes per-trial signal. Population-based methods match TPE's
+mixed-parameter tolerance but coordinate overhead dominates at small
+trial counts.
+
+**Objective.** Per-trial mean ovary DSC on the 8 sacred test subjects,
+averaged across 3 RAovSeg re-training seeds per trial. Failed
+assembly/preprocess trials return DSC = 0 rather than crash the study.
+
+References: Bergstra et al. 2013 (TPE, QMC warm-up); Snoek et al. 2012
+(GP-BO); Klein et al. 2017 (FABOLAS); Akiba et al. 2019 (Optuna).

@@ -600,3 +600,113 @@ Phase 1 downstream degradation: at no point in the pipeline does the
 labelled ovary tissue occupy the same intensity band as the real
 ovaries, so the augmentation trains the segmenter on a fundamentally
 different intensity prior than the one it will see at test time.
+
+---
+
+## Appendix E — PatchGAN gradient-severance bug and post-fix results
+
+The full backstory of the `eps_pred.detach()` bug at `train.py:464`
+that voided the PatchGAN adversarial gradient in every 1c and Phase 2
+training run is documented in
+[LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+Highlights reproduced here as appendix reference:
+
+### E.1 The bug in one line
+
+```python
+# BUGGY (train.py:464 pre-2026-08-11)
+x0_hat = estimate_x0_from_eps(x_t, eps_pred.detach().float(),
+                              train_sched, t)
+```
+
+The `.detach()` on `eps_pred` severed the computation graph from `x0_hat`
+back to `model.parameters()`. When `loss_g_adv.backward()` later ran, it
+propagated **exactly zero** gradient into the generator's parameters,
+regardless of λ or discriminator confidence.
+
+### E.2 Fix
+
+Remove `.detach()`:
+
+```python
+# CORRECTED
+x0_hat = estimate_x0_from_eps(x_t, eps_pred.float(),
+                              train_sched, t)
+```
+
+The D update block already applies its own `x0_hat.detach()` when
+computing `d_fake_logits = discriminator(x0_hat.detach(), ...)`, so
+the G and D backward paths stay correctly isolated.
+
+### E.3 Empirical confirmation via GRAD_DIAG
+
+A diagnostic block guarded by `GRAD_DIAG=1` (see
+`src/Generator/explain.py` and `scripts/tackle_lambda_collapse.sh`) logs
+per-step gradient norms of `L_diff` and `λ·L_adv` separately. Pre-fix
+sample (job `11036725`, Jul 24 2026):
+
+```
+[GRAD_DIAG] step=10025 lam=6.2500e-05 |grad_L_diff|=3.430474e-02 |grad_lam_L_adv|=0.000000e+00 ratio=0.000000e+00
+[GRAD_DIAG] step=10050 lam=1.2500e-04 |grad_L_diff|=7.646020e-02 |grad_lam_L_adv|=0.000000e+00 ratio=0.000000e+00
+...
+```
+
+Every single step past λ warmup showed `|grad_lam·L_adv| = 0.000000e+00`
+while `|grad_L_diff|` was healthy (~3e-2 to 7e-2). Not underflow —
+literal zero from `torch.autograd.grad(lam * loss_g_adv, ...)`, meaning
+no derivative path existed from `loss_g_adv` to `model.parameters()`.
+
+### E.4 Affected experiments
+
+Five training runs, all with PatchGAN enabled:
+
+- `exp1c_concat`
+- `exp1c_spade`
+- `exp2` (= `exp2_d1_gen_d2_disc`)
+- `exp2_lam05`
+- `exp2_lam50`
+
+Not affected: `exp1a`, `exp1b` (no discriminator).
+
+Pre-fix, each of the five was equivalent to its no-PatchGAN counterpart
+(1a or 1b, or plain DDPM for Phase 2) with a useless D running in
+parallel.
+
+### E.5 Post-fix summary
+
+- **Phase 1c downstream DSC** (§4.7.1): 1c_concat jumped from 0.053 to
+  **0.202** (~4× improvement); 1c_spade from 0.178 to **0.226** (+27%).
+- **Phase 2 λ ablation** (§4.7.1): three variants now genuinely differ.
+  Non-monotonic in λ; higher λ correlates with lower DSC.
+- **Per-channel enrichment** (§4.7.2): 1c_SPADE_FIXED reaches E_ovL =
+  **1741** (vs 968 for 1b) — new per-channel localisation ceiling.
+- **Full retracted-claims table** in §4.7.4 of Chapter 4.
+
+### E.6 Reproducibility
+
+To reproduce the bug demonstration + verify the fix, from the repo root:
+
+```bash
+# 1. Byte-compare three "different" pre-fix λ variants (they were identical)
+cmp synth_volumes/exp2/D2-900/D2-900_T2FS.nii.gz \
+    synth_volumes/exp2_lam05/D2-900/D2-900_T2FS.nii.gz   # → IDENTICAL
+
+# 2. Confirm at the tensor level — pre-fix EMA hashes match across variants
+python - <<'PY'
+import torch, hashlib
+def h(sd):
+    hh = hashlib.md5()
+    for k in sorted(sd.keys()):
+        hh.update(k.encode()); hh.update(sd[k].detach().cpu().numpy().tobytes())
+    return hh.hexdigest()
+for p in ["runs/exp2_d1_gen_d2_disc/ckpt/step_100000.pt",
+          "runs/exp2_lam05/ckpt/step_100000.pt",
+          "runs/exp2_lam50/ckpt/step_100000.pt"]:
+    c = torch.load(p, map_location='cpu', weights_only=False)
+    print(p, "EMA:", h(c['ema']))
+PY
+
+# 3. Run the GRAD_DIAG diagnostic (~2 h on one A100)
+sbatch scripts/_diag_lambda_grads.sbatch
+# Post-fix: `|grad_lam·L_adv|` > 0. Pre-fix: exactly 0.
+```

@@ -1,5 +1,13 @@
 # Exp 1c — Conditional PatchGAN on top of both 1a and 1b
 
+> ⚠️ **SUPERSEDED (2026-08-11)** — Every finding in this document was
+> obtained with a PatchGAN gradient-severance bug (`eps_pred.detach()`
+> at `train.py:464`) that voided the adversarial gradient to the
+> generator. "1c" models trained pre-fix are equivalent to 1a/1b with
+> a useless D running in parallel. Corrected results appear in the
+> dissertation §4.7 and [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+> Preserved as historical record.
+
 > A 2-arm experiment that adds a conditional PatchGAN discriminator on top of each conditioning mechanism: 1c_concat = 1a + PatchGAN, 1c_spade = 1b + PatchGAN. Tests whether adversarial loss adds different value to the two architectures.
 >
 > **Headline result**: PatchGAN does different things to different architectures. On concat: big texture-realism win (best FID and hist_KL of all 4 variants). On SPADE: best perceptual realism (lowest LPIPS), keeps SPADE's per-channel localization.

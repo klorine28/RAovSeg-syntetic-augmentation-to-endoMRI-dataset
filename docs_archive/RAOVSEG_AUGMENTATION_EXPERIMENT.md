@@ -1110,3 +1110,72 @@ Outputs on HPC (not pulled to local):
   /mnt/parscratch/users/ijp25lg/synth_mri/runs/raovseg_aug_*_seed*/
   /mnt/parscratch/users/ijp25lg/synth_mri/synth_volumes/exp1c_*/
 ```
+
+---
+
+## 12. Post-fix retrain results (Aug 2026)
+
+Everything above §11 was measured against buggy checkpoints — the
+PatchGAN adversarial gradient was severed by a misplaced `.detach()`
+in `train.py`. See [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+All 5 checkpoints were retrained and every downstream DSC re-run.
+
+### 12.1 Headline DSC comparison
+
+| Variant | Pre-fix DSC | Post-fix DSC (n=3) | Δ |
+|---|---|---|---|
+| **exp1c_concat** | 0.053 ± 0.056 | **0.202 ± 0.025** | **+0.149** (~4×) |
+| **exp1c_spade** | 0.178 ± 0.054 (n=8) | **0.226 ± 0.012** | +0.048 (+27%) |
+| **exp2** (λ=0.01) | 0.020 ± 0.010 | **0.188 ± 0.065** | +0.168 (~9×) |
+| **exp2_lam05** (λ=0.05) | 0.020 (bug artifact) | **0.173 ± 0.086** | first real |
+| **exp2_lam50** (λ=0.50) | 0.020 (bug artifact) | **0.158 ± 0.147** | first real |
+| Baseline (real-only) | 0.290 | 0.290 | unchanged |
+
+Real PatchGAN gradient moves DSC by +0.05 to +0.17 across every variant.
+
+### 12.2 Mechanism — where the improvement came from
+
+| Variant | Ovary mean | In-window % | Pre-fix in-window |
+|---|---|---|---|
+| Real D2 | 0.521 | 10.6% | — |
+| spade_fixed | 0.241 | 20.6% | 18.8% |
+| concat_fixed | 0.246 | **54.8%** | **16.2%** |
+| exp2_fixed | 0.344 | 9.9% | (identical across λ pre-fix) |
+| exp2_lam05_fixed | 0.322 | 19.7% | " |
+| exp2_lam50_fixed | 0.340 | 9.1% | " |
+
+Concat's 55% in-window (vs 16% pre-fix) is the mechanistic signature of
+PatchGAN working. Real adversarial gradient tightens synth intensity
+distribution around RAovSeg's [0.22, 0.30] enhancement window.
+
+### 12.3 Metric-vs-DSC correlations (n=5)
+
+From `figures_fixed/correlation/correlation_table.csv`:
+
+| Metric | Pearson r | Spearman ρ | Interpretation |
+|---|---|---|---|
+| ovary_mean | **-0.85** (p=0.07) | -0.70 (p=0.19) | Strong linear; lower mean → higher DSC |
+| in_window_pct | +0.42 (p=0.48) | **+0.80** (p=0.10) | Monotonic; saturates above ~20% |
+| CLR | — | — | Missing (Phase 2 explain runs incomplete) |
+
+Full analysis: [METRIC_DSC_CORRELATION.md](../METRIC_DSC_CORRELATION.md) §11.
+
+### 12.4 Pre-fix claims that need revision
+
+- "concat is architecturally locked out" → RETRACTED (concat gets 0.202)
+- "Phase 2 catastrophically collapses" (DSC 0.020) → MOSTLY RETRACTED
+  (fixed gets 0.16-0.19)
+- "λ_peak has no effect on Phase 2" → RETRACTED (real ordering:
+  λ=0.01 > λ=0.05 > λ=0.50, but within noise at n=3)
+- "MSE dominates PatchGAN at low λ" → RETRACTED (no gradient to
+  dominate; mechanistic story was fabricated)
+
+### 12.5 What still holds
+
+- **Real-only baseline of 0.290 is unbeaten** by every augmentation
+  configuration. Data-scarcity ceiling stands.
+- **Path C effect** untested against fixed synth; plausibly still
+  helpful, empirically unmeasured.
+- **n=3 seed noise** (variance study §4.4 finding) applies to all
+  post-fix numbers here — treat with the same caveat.
+

@@ -1,5 +1,14 @@
 # Synthetic Pelvic MRI Generator — 2×2 Quantitative Results
 
+> ⚠️ **SUPERSEDED (2026-08-11)** — Every 1c row in this document was
+> trained with a PatchGAN gradient-severance bug (`eps_pred.detach()`
+> at `train.py:464`) that voided the adversarial gradient to the
+> generator. CLR, DSC, and interpretations of 1c_concat and 1c_spade
+> reported here are for buggy models equivalent to their no-PatchGAN
+> counterparts (1a and 1b respectively). Corrected numbers appear
+> in the dissertation §4.7 and in [LAMBDA_ABLATION_COLLAPSE.md](../LAMBDA_ABLATION_COLLAPSE.md).
+> Preserved as historical record.
+
 > **TL;DR**
 > Four conditional DDPM variants compared: concat (1a), SPADE (1b), and each with a PatchGAN discriminator (1c_concat, 1c_spade). **No single winner across all metrics** — the four variants occupy a clean architectural map of "controllability vs realism." **1c_concat dominates texture realism** (best FID and hist_KL). **SPADE variants dominate per-organ controllability** (5–10× higher CLR than concat). **1c_spade is the best of both worlds** for perceptual realism while keeping localization.
 >

@@ -98,3 +98,80 @@ subjects is not more sampling or more preprocessing tuning but a
 re-thinking of the generator's alignment with the downstream
 consumer's preprocessing assumptions. Paired supervision and larger
 real-data collection remain the natural next steps.
+
+---
+
+## 6.6 Post-fix corrections (Aug 2026)
+
+§§6.1–6.2 above were written against measurements taken with a
+PatchGAN gradient-severance bug in the training pipeline (documented
+in [`LAMBDA_ABLATION_COLLAPSE.md`](../LAMBDA_ABLATION_COLLAPSE.md);
+consequences in Chapter 4 §4.11 and Chapter 5 §5.7). The bug caused
+`|∇(λ·L_adv)| = 0` on every 1c and Phase 2 training step, so those
+generators never received an adversarial gradient. After fixing and
+retraining all 5 affected generators, the summary and contributions
+change as follows.
+
+### 6.6.1 Corrected summary
+
+Replace §6.1 paragraph 2 ("Phase 1's preprocessing-fix trajectory…")
+and paragraph 3 ("The negative results support…") with:
+
+> Phase 1 SPADE conditioning plateaus at DSC 0.226 ± 0.012 (n = 3
+> post-fix), 22% below baseline — narrower than the pre-fix estimate
+> of 39% but still a real gap. Concat conditioning, previously
+> reported as architecturally locked out at DSC 0.053, reaches
+> DSC 0.202 ± 0.025 once PatchGAN is actually training — small gap
+> (~0.024) to SPADE and no longer a lockout claim. Phase 2
+> cross-domain synthesis produces DSC 0.16–0.19 (not 0.020), which
+> is a substantial gap to baseline but not the catastrophic collapse
+> previously reported.
+>
+> The negative results support three revised claims of independent
+> interest to the field: (1) no configuration in this ablation
+> beats the real-only baseline at n = 30 real training subjects,
+> consistent with a data-scale ceiling; (2) task-specific
+> preprocessing-aware metrics predict downstream DSC with the
+> expected sign (`ovary_mean` r = −0.85, `in_window_pct` ρ = +0.80,
+> n = 5) whereas distributional metrics (FID, LPIPS, hist_KL) do
+> not; (3) under adversarial regularisation, visual realism and
+> downstream utility can diverge — the "utility-vs-realism
+> divergence" documented in §4.11.7 and §5.8.
+
+### 6.6.2 Corrected contributions
+
+Replace §6.2's four bullets with:
+
+- A clean 2×2 conditional-DDPM ablation on pelvic T2FS MRI, with
+  the PatchGAN adversarial pathway both correctly implemented and
+  verified via direct gradient measurement.
+- The **Counterfactual Localisation Ratio (CLR)** and the
+  **in-window fraction** metric, two task-specific interpretability
+  measures that correlate with downstream DSC where standard
+  distributional metrics do not.
+- The **label-aware ovary intensity rescaling technique** (Path B),
+  a generator-independent preprocessing fix that contributes ~+0.05
+  DSC on every configuration in this study.
+- An empirical demonstration of the **utility-vs-realism divergence**
+  (§4.11.7): the same generator produces visually rougher but
+  downstream-more-useful output when PatchGAN is training, on a
+  segmenter with non-linear target-tuned preprocessing.
+- A **variance-study protocol** (n ≥ 5 seeds) that surfaces
+  per-subject failure modes obscured by standard n = 3 reporting.
+- A **debugging methodology** (§5.7.5 meta-lesson): when a
+  mechanistic story is invoked to explain a result, measure the
+  invariant the mechanism relies on directly; do not accept
+  plausible narratives without verification.
+
+### 6.6.3 Corrected closing statement
+
+The pre-fix closing statement (§6.5) stands but with a corrected
+scope. The path to a positive synthetic-augmentation result at
+n < 50 real subjects is not more sampling or more preprocessing
+tuning but (a) alignment of the generator's output distribution
+with the downstream consumer's preprocessing assumptions, and
+(b) evaluation with task-specific rather than realism-centric
+metrics. Paired supervision and larger real-data collection remain
+the natural next steps for beating baseline; the mechanistic and
+metric findings of this dissertation are applicable regardless of
+whether that beat happens.
