@@ -84,3 +84,8 @@ _*.png
 
 # --- One-off superseded backups ---
 metrics/*.OLD_*.csv
+
+# --- Phase 1 HPC-mirror artefacts (moved to external SSD archive) ---
+1a/
+1b/
+1c/
